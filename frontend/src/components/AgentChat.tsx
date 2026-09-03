@@ -9,6 +9,7 @@ import { useAppContext } from '../contexts/AppContext';
 import { exportAsMarkdown, downloadMarkdown } from '../utils/exportConversation';
 import { trackFeedback } from '../services/telemetry';
 import type { IChatItem } from '../types/chat';
+import { DEFAULT_SHARECLOUD_CONTEXT, type IndustryContext, type InteractionMode } from '../types/sharecloud';
 import styles from './AgentChat.module.css';
 
 interface AgentChatProps {
@@ -24,6 +25,16 @@ export const AgentChat: React.FC<AgentChatProps> = ({ agentName, agentDescriptio
   const { dispatch } = useAppContext();
   const { getAccessToken } = useAuth();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [interactionMode, setInteractionMode] = useState<InteractionMode>(
+    DEFAULT_SHARECLOUD_CONTEXT.interactionMode
+  );
+  const [industryContext, setIndustryContext] = useState<IndustryContext>(
+    DEFAULT_SHARECLOUD_CONTEXT.industryContext
+  );
+  const applicationContext = useMemo(
+    () => ({ interactionMode, industryContext }),
+    [interactionMode, industryContext]
+  );
 
   // Create service instances
   const apiUrl = import.meta.env.VITE_API_URL || '/api';
@@ -37,7 +48,12 @@ export const AgentChat: React.FC<AgentChatProps> = ({ agentName, agentDescriptio
       dispatch({ type: 'CHAT_QUEUE_MESSAGE', text, files });
       return;
     }
-    await chatService.sendMessage(text, chat.currentConversationId, files);
+    await chatService.sendMessage(
+      text,
+      chat.currentConversationId,
+      files,
+      applicationContext
+    );
   };
 
   // Drain the queue when the stream completes
@@ -52,10 +68,11 @@ export const AgentChat: React.FC<AgentChatProps> = ({ agentName, agentDescriptio
       chatService.sendMessage(
         combinedText,
         chat.currentConversationId,
-        combinedFiles.length > 0 ? combinedFiles : undefined
+        combinedFiles.length > 0 ? combinedFiles : undefined,
+        applicationContext
       );
     }
-  }, [chat.status, chat.currentConversationId, chatService, dispatch]);
+  }, [chat.status, chat.currentConversationId, chatService, dispatch, applicationContext]);
 
   const handleDequeueMessage = (index: number) => {
     dispatch({ type: 'CHAT_DEQUEUE_MESSAGE', index });
@@ -68,6 +85,8 @@ export const AgentChat: React.FC<AgentChatProps> = ({ agentName, agentDescriptio
   const handleNewChat = () => {
     chatService.cancelStream();
     chatService.clearChat();
+    setInteractionMode(DEFAULT_SHARECLOUD_CONTEXT.interactionMode);
+    setIndustryContext(DEFAULT_SHARECLOUD_CONTEXT.industryContext);
   };
 
   const handleCancelStream = () => {
@@ -111,9 +130,14 @@ export const AgentChat: React.FC<AgentChatProps> = ({ agentName, agentDescriptio
     if (chat.regenerateText?.trim() && chat.status === 'idle') {
       const text = chat.regenerateText;
       dispatch({ type: 'CHAT_CONSUMED_REGENERATE' });
-      chatService.sendMessage(text, chat.currentConversationId);
+      chatService.sendMessage(
+        text,
+        chat.currentConversationId,
+        undefined,
+        applicationContext
+      );
     }
-  }, [chat.regenerateText, chat.status, chat.currentConversationId, chatService, dispatch]);
+  }, [chat.regenerateText, chat.status, chat.currentConversationId, chatService, dispatch, applicationContext]);
 
   const handleMcpApproval = async (
     approvalRequestId: string,
@@ -175,6 +199,8 @@ export const AgentChat: React.FC<AgentChatProps> = ({ agentName, agentDescriptio
   const handleSelectConversation = useCallback(async (conversationId: string) => {
     try {
       chatService.cancelStream();
+      setInteractionMode(DEFAULT_SHARECLOUD_CONTEXT.interactionMode);
+      setIndustryContext(DEFAULT_SHARECLOUD_CONTEXT.industryContext);
       const messages = await chatService.getConversationMessages(conversationId);
       const chatItems: IChatItem[] = messages
         .filter(msg => msg.role === 'user' || msg.role === 'assistant')
@@ -240,6 +266,10 @@ export const AgentChat: React.FC<AgentChatProps> = ({ agentName, agentDescriptio
           agentDescription={agentDescription}
           agentLogo={agentLogo}
           starterPrompts={starterPrompts}
+          interactionMode={interactionMode}
+          industryContext={industryContext}
+          onInteractionModeChange={setInteractionMode}
+          onIndustryContextChange={setIndustryContext}
         />
       </div>
 

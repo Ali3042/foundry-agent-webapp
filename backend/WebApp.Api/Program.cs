@@ -181,6 +181,7 @@ app.MapPost("/api/chat/stream", async (
 
         var conversationId = request.ConversationId
             ?? await agentService.CreateConversationAsync(request.Message, cancellationToken);
+        var agentMessage = ApplicationContextFormatter.BuildAgentMessage(request);
 
         await WriteConversationIdEvent(httpContext.Response, conversationId, cancellationToken);
 
@@ -188,7 +189,7 @@ app.MapPost("/api/chat/stream", async (
 
         await foreach (var chunk in agentService.StreamMessageAsync(
             conversationId,
-            request.Message,
+            agentMessage,
             request.ImageDataUris,
             request.FileDataUris,
             request.PreviousResponseId,
@@ -225,7 +226,10 @@ app.MapPost("/api/chat/stream", async (
 
         await WriteDoneEvent(httpContext.Response, cancellationToken);
     }
-    catch (ArgumentException ex) when (ex.Message.Contains("Invalid") && (ex.Message.Contains("attachments") || ex.Message.Contains("image") || ex.Message.Contains("file")))
+    catch (ArgumentException ex) when (
+        (ex.ParamName is nameof(ChatRequest.InteractionMode) or nameof(ChatRequest.IndustryContext))
+        || (ex.Message.Contains("Invalid")
+            && (ex.Message.Contains("attachments") || ex.Message.Contains("image") || ex.Message.Contains("file"))))
     {
         // Validation errors from image/file processing - return 400 Bad Request
         var errorResponse = ErrorResponseFactory.CreateFromException(
@@ -451,7 +455,11 @@ app.MapGet("/api/conversations/{conversationId}/messages", async (
     try
     {
         var messages = await agentService.GetConversationMessagesAsync(conversationId, cancellationToken);
-        return Results.Ok(messages);
+        var displayMessages = messages.Select(message =>
+            string.Equals(message.Role, "user", StringComparison.OrdinalIgnoreCase)
+                ? message with { Content = ApplicationContextFormatter.ExtractUserRequest(message.Content) }
+                : message).ToList();
+        return Results.Ok(displayMessages);
     }
     catch (Exception ex)
     {

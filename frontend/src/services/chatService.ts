@@ -18,6 +18,7 @@ import {
   createAttachmentMetadata,
 } from '../utils/fileAttachments';
 import { parseSseLine, splitSseBuffer } from '../utils/sseParser';
+import { DEFAULT_SHARECLOUD_CONTEXT, type ShareCloudApplicationContext } from '../types/sharecloud';
 
 /**
  * ChatService handles all chat-related API operations.
@@ -133,11 +134,14 @@ export class ChatService {
     message: string,
     conversationId: string | null,
     imageDataUris: string[],
-    fileDataUris: Array<{ dataUri: string; fileName: string; mimeType: string }>
+    fileDataUris: Array<{ dataUri: string; fileName: string; mimeType: string }>,
+    applicationContext: ShareCloudApplicationContext
   ): Record<string, unknown> {
     return {
       message,
       conversationId,
+      interactionMode: applicationContext.interactionMode,
+      industryContext: applicationContext.industryContext || undefined,
       imageDataUris: imageDataUris.length > 0 ? imageDataUris : undefined,
       fileDataUris: fileDataUris.length > 0 ? fileDataUris : undefined,
     };
@@ -193,7 +197,8 @@ export class ChatService {
   async sendMessage(
     messageText: string,
     currentConversationId: string | null,
-    files?: File[]
+    files?: File[],
+    applicationContext: ShareCloudApplicationContext = DEFAULT_SHARECLOUD_CONTEXT
   ): Promise<void> {
     if (this.currentStreamAbort) {
       this.streamCancelled = true;
@@ -244,7 +249,8 @@ export class ChatService {
       messageText,
       currentConversationId,
       imageDataUris,
-      fileDataUris
+      fileDataUris,
+      applicationContext
     );
 
     const maxRetries = 3;

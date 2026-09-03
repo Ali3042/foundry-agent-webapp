@@ -9,7 +9,9 @@ import { Waves } from "./animations/Waves";
 import { ErrorMessage } from "./core/ErrorMessage";
 import { KeyboardShortcuts } from "./core/KeyboardShortcuts";
 import { BuiltWithBadge } from "./core/BuiltWithBadge";
+import { ShareCloudContextBar } from "./ShareCloudContextBar";
 import type { IChatItem } from "../types/chat";
+import type { IndustryContext, InteractionMode } from "../types/sharecloud";
 import type { AppState } from "../types/appState";
 import type { AppError } from "../types/errors";
 import styles from './ChatInterface.module.css';
@@ -45,6 +47,10 @@ interface ChatInterfaceProps {
   agentLogo?: string;
   starterPrompts?: string[];
   conversationId?: string | null;
+  interactionMode: InteractionMode;
+  industryContext: IndustryContext;
+  onInteractionModeChange: (mode: InteractionMode) => void;
+  onIndustryContextChange: (industry: IndustryContext) => void;
 }
 
 export const ChatInterface: React.FC<ChatInterfaceProps> = (props) => {
@@ -62,6 +68,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = (props) => {
   
   const isStreaming = status === 'streaming';
   const isBusy = disabled || status === 'sending';
+  const inputPlaceholder = props.interactionMode === 'Drafting'
+    ? 'Paste a bid requirement or describe the section you need to draft.'
+    : 'What capability or evidence are you looking for?';
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -295,6 +304,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = (props) => {
           </div>
         )}
 
+        <ShareCloudContextBar
+          interactionMode={props.interactionMode}
+          industryContext={props.industryContext}
+          disabled={isBusy || isStreaming}
+          onInteractionModeChange={props.onInteractionModeChange}
+          onIndustryContextChange={props.onIndustryContextChange}
+        />
         <Waves />
         <ChatInput
           onSubmit={handleSendMessage}
@@ -303,7 +319,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = (props) => {
           onNewChat={onNewChat}
           onToggleSidebar={onToggleSidebar}
           hasMessages={hasMessages}
-          placeholder="Type your message here..."
+          placeholder={inputPlaceholder}
           isStreaming={isStreaming}
           onCancelStream={isStreaming && onCancelStream ? onCancelStream : undefined}
           isEditing={isEditing}

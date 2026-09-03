@@ -1,0 +1,107 @@
+.contextBar {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 1fr);
+  gap: 10px 16px;
+  width: 100%;
+  max-width: 900px;
+  box-sizing: border-box;
+  padding: 0 1rem 0.75rem;
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.label {
+  color: var(--colorNeutralForeground2);
+  font-size: var(--fontSizeBase200);
+  font-weight: var(--fontWeightSemibold);
+}
+
+.optional {
+  color: var(--colorNeutralForeground3);
+  font-weight: var(--fontWeightRegular);
+}
+
+.segmentedControl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-height: 36px;
+  overflow: hidden;
+  border: 1px solid var(--colorNeutralStroke1);
+  border-radius: 8px;
+  background: var(--colorNeutralBackground3);
+}
+
+.segmentButton {
+  border: 0;
+  border-right: 1px solid var(--colorNeutralStroke1);
+  padding: 7px 12px;
+  background: transparent;
+  color: var(--colorNeutralForeground2);
+  font: inherit;
+  font-size: var(--fontSizeBase300);
+  cursor: pointer;
+}
+
+.segmentButton:last-child {
+  border-right: 0;
+}
+
+.segmentButton:hover:not(:disabled) {
+  background: var(--colorNeutralBackground3Hover);
+}
+
+.segmentButtonSelected {
+  background: var(--colorBrandBackground2);
+  color: var(--colorBrandForeground1);
+  font-weight: var(--fontWeightSemibold);
+}
+
+.segmentButton:focus-visible,
+.select:focus-visible {
+  outline: 2px solid var(--colorStrokeFocus2);
+  outline-offset: 2px;
+}
+
+.segmentButton:disabled,
+.select:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.select {
+  min-height: 36px;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--colorNeutralStroke1);
+  border-radius: 8px;
+  padding: 6px 34px 6px 10px;
+  background: var(--colorNeutralBackground1);
+  color: var(--colorNeutralForeground1);
+  font: inherit;
+  font-size: var(--fontSizeBase300);
+}
+
+.helperText {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--colorNeutralForeground3);
+  font-size: var(--fontSizeBase200);
+  line-height: 1.35;
+}
+
+@media (max-width: 700px) {
+  .contextBar {
+    grid-template-columns: 1fr;
+  }
+
+  .helperText {
+    grid-column: 1;
+  }
+}
