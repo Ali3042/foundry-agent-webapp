@@ -5,6 +5,14 @@ public record ChatRequest
     public required string Message { get; init; }
     public string? ConversationId { get; init; }
     /// <summary>
+    /// User-selected ShareCloud workflow: Discovery or Drafting.
+    /// </summary>
+    public string? InteractionMode { get; init; }
+    /// <summary>
+    /// Optional contextual bias supplied by the UI. This does not hard-filter retrieval.
+    /// </summary>
+    public string? IndustryContext { get; init; }
+    /// <summary>
     /// Base64-encoded image data URIs (e.g., data:image/png;base64,iVBORw0KG...)
     /// Images are sent inline with the message, no file upload needed.
     /// </summary>
