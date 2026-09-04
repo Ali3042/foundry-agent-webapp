@@ -25,6 +25,12 @@
     },
     "enableObo": {
       "value": "${ENABLE_OBO=false}"
+    },
+    "existingEntraSpaClientId": {
+  "value": "${ENTRA_EXISTING_SPA_CLIENT_ID=}"
+    },
+    "existingEntraAppObjectId": {
+    "value": "${ENTRA_EXISTING_APP_OBJECT_ID=}"
     }
   }
 }
