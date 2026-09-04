@@ -39,6 +39,10 @@ param existingEntraSpaClientId string = ''
 @description('Existing Entra SPA application object ID.')
 param existingEntraAppObjectId string = ''
 
+// !PATCH Attributes for pre-configured log workspace
+@description('Existing shared Log Analytics workspace resource ID')
+param existingLogAnalyticsWorkspaceId string
+
 var abbrs = loadJsonContent('./abbreviations.json')
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
 var appTags = {
@@ -49,7 +53,7 @@ var appTags = {
 var tags = union(defaultTags, appTags)
 
 resource rg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
-  name: '${abbrs.resourcesResourceGroups}${environmentName}'
+  name: '${environmentName}-rg'
   location: location
   tags: tags
 }
@@ -62,6 +66,7 @@ module infrastructure 'main-infrastructure.bicep' = {
     location: location
     tags: tags
     resourceToken: resourceToken
+    logAnalyticsWorkspaceId: existingLogAnalyticsWorkspaceId
   }
 }
 

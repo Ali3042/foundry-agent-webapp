@@ -31,6 +31,9 @@
     },
     "existingEntraAppObjectId": {
     "value": "${ENTRA_EXISTING_APP_OBJECT_ID=}"
+    },
+    "existingLogAnalyticsWorkspaceId": {
+    "value": "${AZURE_EXISTING_LOG_ANALYTICS_WORKSPACE_ID}"
     }
   }
 }
