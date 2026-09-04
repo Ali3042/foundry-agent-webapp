@@ -1,0 +1,75 @@
+name: Deploy ShareCloud Frontend
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+      - "backend/**"
+      - "deployment/docker/**"
+      - ".github/workflows/deploy-sharecloud-frontend.yml"
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ACR_NAME: sharecloudfrontendacrpbtau4
+  RESOURCE_GROUP: sharecloud-frontend-rg
+  CONTAINER_APP: sharecloud-frontend-app
+  IMAGE_REPOSITORY: web
+  ENTRA_SPA_CLIENT_ID: 26430891-8fdf-484a-8bb7-2a7eea94b944
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Sign in to Azure with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign in to Azure Container Registry
+        run: az acr login --name "$ACR_NAME"
+
+      - name: Build ShareCloud image
+        run: |
+          IMAGE="$ACR_NAME.azurecr.io/$IMAGE_REPOSITORY:${GITHUB_SHA}"
+
+          docker build \
+            --platform linux/amd64 \
+            --build-arg ENTRA_SPA_CLIENT_ID="$ENTRA_SPA_CLIENT_ID" \
+            --build-arg ENTRA_TENANT_ID="${{ secrets.AZURE_TENANT_ID }}" \
+            --build-arg APPLICATIONINSIGHTS_FRONTEND_CONNECTION_STRING="${{ secrets.APPLICATIONINSIGHTS_FRONTEND_CONNECTION_STRING }}" \
+            -f deployment/docker/frontend.Dockerfile \
+            -t "$IMAGE" \
+            .
+
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Push ShareCloud image
+        run: docker push "$IMAGE"
+
+      - name: Deploy image to Container App
+        run: |
+          az containerapp update \
+            --name "$CONTAINER_APP" \
+            --resource-group "$RESOURCE_GROUP" \
+            --image "$IMAGE" \
+            --output none
+
+      - name: Verify deployed image
+        run: |
+          az containerapp show \
+            --name "$CONTAINER_APP" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query "{URL:properties.configuration.ingress.fqdn,Image:properties.template.containers[0].image,Revision:properties.latestRevisionName}" \
+            -o table
