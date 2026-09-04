@@ -40,7 +40,7 @@ public class AgentFrameworkService : IDisposable
     private readonly string? _backendClientId;
     private readonly string? _tenantId;
     private readonly string? _managedIdentityClientId;
-    private readonly bool _useObo;
+    private readonly bool _useUserDelegatedSearch;
     private readonly TokenCredential _fallbackCredential;
 
     // Agent metadata cache (static - shared across requests)
@@ -58,7 +58,7 @@ public class AgentFrameworkService : IDisposable
     /// </summary>
     public const string WebAppUploadFilenamePrefix = "webapp-upload-";
 
-    // Per-request project client
+    // Project client authenticated with the application managed identity.
     private AIProjectClient? _projectClient;
     private bool _disposed = false;
     private ResponseTokenUsage? _lastUsage;
@@ -91,18 +91,20 @@ public class AgentFrameworkService : IDisposable
 
         _backendClientId = configuration["ENTRA_BACKEND_CLIENT_ID"];
         _tenantId = configuration["ENTRA_TENANT_ID"] ?? configuration["AzureAd:TenantId"];
-        // User-assigned MI client ID — used for MI-only mode and as FIC assertion in OBO mode
+        // User-assigned MI client ID — used for Foundry service authentication
+        // and as the FIC assertion identity for delegated Search token acquisition.
         _managedIdentityClientId = configuration["MANAGED_IDENTITY_CLIENT_ID"]
             ?? configuration["OBO_MANAGED_IDENTITY_CLIENT_ID"]; // backward compat
 
         var environment = configuration["ASPNETCORE_ENVIRONMENT"] ?? "Production";
 
-        // Determine if OBO is available
-        _useObo = !string.IsNullOrEmpty(_backendClientId)
-                  && !string.IsNullOrEmpty(_tenantId)
-                  && environment != "Development";
+        // Enable user-delegated Search when the backend Entra app is configured.
+        // Foundry service-to-service calls continue to use managed identity.
+        _useUserDelegatedSearch = !string.IsNullOrEmpty(_backendClientId)
+            && !string.IsNullOrEmpty(_tenantId)
+            && environment != "Development";
 
-        // Create credential for non-OBO operations (agent metadata cache, MI-only mode)
+        // Create the application credential used for Foundry service-to-service operations.
         if (environment == "Development")
         {
             _logger.LogInformation("Development: Using ChainedTokenCredential (AzureCli -> AzureDeveloperCli)");
@@ -122,68 +124,57 @@ public class AgentFrameworkService : IDisposable
             _fallbackCredential = new ManagedIdentityCredential(ManagedIdentityId.SystemAssigned);
         }
 
-        if (_useObo)
+        if (_useUserDelegatedSearch)
         {
             if (string.IsNullOrEmpty(_managedIdentityClientId))
             {
                 throw new InvalidOperationException(
-                    "OBO mode requires MANAGED_IDENTITY_CLIENT_ID to be set for the FIC assertion. " +
-                    "This is the user-assigned managed identity that acts as the federated credential.");
+                    "User-delegated Search requires MANAGED_IDENTITY_CLIENT_ID to be set for the FIC assertion.");
             }
-            _logger.LogInformation("OBO mode enabled: backendClientId={BackendClientId}. All API calls use user-delegated identity.", _backendClientId);
 
-            // Initialize MI assertion eagerly — avoids thread-safety issues with lazy init
-            // in CreateOboCredential(). Safe here because the constructor runs once per scoped instance.
-            s_miAssertion ??= new ManagedIdentityClientAssertion(managedIdentityClientId: _managedIdentityClientId);
+            _logger.LogInformation(
+                "User-delegated SharePoint retrieval enabled: backendClientId={BackendClientId}. " +
+                "Foundry API calls remain authenticated with managed identity.",
+                _backendClientId);
 
-            // No cached project client in OBO mode — created per-request with user's token
+            // Used only to authenticate the backend app during the OBO token exchange.
+            s_miAssertion ??= new ManagedIdentityClientAssertion(
+                managedIdentityClientId: _managedIdentityClientId);
         }
         else
         {
-            _logger.LogInformation("MI mode: using managed identity for all API calls");
-            _projectClient = new AIProjectClient(new Uri(_agentEndpoint), _fallbackCredential);
+            _logger.LogInformation(
+                "User-delegated SharePoint retrieval disabled. Foundry API calls use managed identity.");
         }
+
+        // Foundry service-to-service calls always use the application managed identity.
+        _projectClient = new AIProjectClient(
+            new Uri(_agentEndpoint),
+            _fallbackCredential);
 
         _logger.LogInformation("AIProjectClient initialized successfully");
     }
 
     /// <summary>
-    /// Get AIProjectClient — OBO mode creates per-request with user's identity, MI mode uses cached client.
+    /// Returns the project client authenticated with the application's managed identity.
+    /// End-user identity is propagated separately for permission-aware retrieval.
     /// </summary>
     private AIProjectClient GetProjectClient()
     {
-        // MI mode: return cached client
-        if (!_useObo)
-        {
-            _projectClient ??= new AIProjectClient(new Uri(_agentEndpoint), _fallbackCredential);
-            return _projectClient;
-        }
-
-        // OBO: create per-request client with user's token (cached for request lifetime)
-        if (_projectClient is null)
-        {
-            var userToken = ExtractBearerToken();
-            if (string.IsNullOrEmpty(userToken))
-            {
-                throw new InvalidOperationException(
-                    "OBO mode requires a bearer token but none was found in the request. " +
-                    "Ensure the frontend is sending an Authorization header with a valid token.");
-            }
-
-            var oboCredential = CreateOboCredential(userToken);
-            _logger.LogDebug("Created OBO credential for request");
-            _projectClient = new AIProjectClient(new Uri(_agentEndpoint), oboCredential);
-        }
+        _projectClient ??= new AIProjectClient(
+            new Uri(_agentEndpoint),
+            _fallbackCredential);
 
         return _projectClient;
     }
 
     /// <summary>
-    /// Create OBO credential using the user's JWT and managed identity FIC assertion.
+    /// Creates an OBO credential used only to acquire downstream user-delegated tokens.
+    /// The managed identity FIC authenticates the ShareCloud backend application without a client secret.
     /// </summary>
     private OnBehalfOfCredential CreateOboCredential(string userToken)
     {
-        // s_miAssertion is initialized eagerly in the constructor (OBO branch)
+        // s_miAssertion is initialized eagerly when delegated Search is enabled.
         Func<CancellationToken, Task<string>> assertionCallback =
             async (ct) => await s_miAssertion!.GetSignedAssertionAsync(
                 new AssertionRequestOptions { CancellationToken = ct });
@@ -209,6 +200,39 @@ public class AgentFrameworkService : IDisposable
     }
 
     /// <summary>
+    /// Acquires a short-lived Azure AI Search token representing the signed-in user.
+    /// This token is supplied separately to Foundry IQ for SharePoint permission-aware retrieval.
+    /// </summary>
+    private async Task<string?> GetSearchAuthorizationTokenAsync(
+        CancellationToken cancellationToken)
+    {
+        if (!_useUserDelegatedSearch)
+        {
+            return null;
+        }
+
+        var userToken = ExtractBearerToken();
+
+        if (string.IsNullOrEmpty(userToken))
+        {
+            throw new InvalidOperationException(
+                "User-delegated SharePoint retrieval requires a bearer token from the signed-in user.");
+        }
+
+        var oboCredential = CreateOboCredential(userToken);
+
+        var token = await oboCredential.GetTokenAsync(
+            new TokenRequestContext(
+                ["https://search.azure.com/.default"]),
+            cancellationToken);
+
+        _logger.LogDebug(
+            "Acquired user-delegated Azure AI Search token for SharePoint retrieval.");
+
+        return token.Token;
+    }
+
+    /// <summary>
     /// Load the agent version metadata via AgentAdministrationClient (v2 Agents API).
     /// When <see cref="_configuredAgentVersion"/> is set, fetches that specific version by id.
     /// When unset, lists versions in descending order and picks the first (= newest).
@@ -226,7 +250,7 @@ public class AgentFrameworkService : IDisposable
             if (s_cachedAgentVersion != null)
                 return s_cachedAgentVersion;
 
-            // Use the same credential path as all other operations (MI or OBO)
+            // Agent metadata is a Foundry service operation and therefore uses managed identity.
             var client = GetProjectClient();
 
             ProjectsAgentVersion? loaded;
@@ -324,6 +348,16 @@ public class AgentFrameworkService : IDisposable
             mcpApproval != null);
 
         CreateResponseOptions options = new() { StreamingEnabled = true };
+
+        // Acquire and attach the user's delegated Search token for permission-aware retrieval.
+        var searchAuthorizationToken =
+            await GetSearchAuthorizationTokenAsync(cancellationToken);
+
+        if (!string.IsNullOrEmpty(searchAuthorizationToken))
+        {
+            options.StructuredInputs["search_auth_token"] =
+                BinaryData.FromObjectAsJson(searchAuthorizationToken);
+        }
 
         // Resolve the concrete agent version up front so streaming and metadata use the same version.
         var resolvedAgent = await GetAgentAsync(cancellationToken);
@@ -999,17 +1033,8 @@ public class AgentFrameworkService : IDisposable
     {
         _logger.LogInformation("Downloading container file: {FileId} from container: {ContainerId}", fileId, containerId);
 
-        // Reuse the same credential as the project client (MI or OBO)
-        TokenCredential credential;
-        if (_useObo)
-        {
-            var userToken = ExtractBearerToken();
-            credential = CreateOboCredential(userToken ?? throw new InvalidOperationException("OBO requires bearer token"));
-        }
-        else
-        {
-            credential = _fallbackCredential;
-        }
+        // Container files are a Foundry service operation, so authenticate as the application.
+        TokenCredential credential = _fallbackCredential;
 
         var tokenRequestContext = new TokenRequestContext(["https://ai.azure.com/.default"]);
         var accessToken = await credential.GetTokenAsync(tokenRequestContext, cancellationToken);

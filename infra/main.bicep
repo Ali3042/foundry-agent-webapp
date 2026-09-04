@@ -43,12 +43,29 @@ param existingEntraAppObjectId string = ''
 @description('Existing shared Log Analytics workspace resource ID')
 param existingLogAnalyticsWorkspaceId string
 
+// !PATCH Attributes for backend xauth token app
+@description('Existing Entra backend/OBO client ID')
+param existingEntraBackendClientId string = ''
+
+// !PATCH Attributes for backend xauth token app
+@description('Existing Entra backend/OBO application object ID')
+param existingEntraBackendAppObjectId string = ''
+
 var abbrs = loadJsonContent('./abbreviations.json')
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
 var appTags = {
   'azd-env-name': environmentName
   'app-name': 'ai-foundry-agent'
 }
+
+// !PATCH Resolve Entra Backend attributes
+var resolvedEntraBackendClientId = !empty(existingEntraBackendClientId)
+  ? existingEntraBackendClientId
+  : enableObo ? entraApp!.outputs.backendClientAppId : ''
+
+var resolvedEntraBackendAppObjectId = !empty(existingEntraBackendAppObjectId)
+  ? existingEntraBackendAppObjectId
+  : enableObo ? entraApp!.outputs.backendAppObjectId : ''
 
 var tags = union(defaultTags, appTags)
 
@@ -106,7 +123,7 @@ module app 'main-app.bicep' = {
     aiAgentId: aiAgentId
     entraSpaClientId: resolvedEntraSpaClientId
     entraTenantId: entraTenantId
-    entraBackendClientId: enableObo ? entraApp.outputs.backendClientAppId : ''
+    entraBackendClientId: resolvedEntraBackendClientId
     webImageName: webImageName
     userAssignedIdentityId: infrastructure.outputs.managedIdentityId
     oboManagedIdentityClientId: infrastructure.outputs.managedIdentityClientId
@@ -127,7 +144,7 @@ output WEB_ENDPOINT string = app.outputs.webEndpoint
 output WEB_IDENTITY_PRINCIPAL_ID string = infrastructure.outputs.managedIdentityPrincipalId
 output ENTRA_SPA_CLIENT_ID string = resolvedEntraSpaClientId
 output ENTRA_APP_OBJECT_ID string = resolvedEntraAppObjectId
-output ENTRA_BACKEND_CLIENT_ID string = enableObo ? entraApp.outputs.backendClientAppId : ''
-output ENTRA_BACKEND_APP_OBJECT_ID string = enableObo ? entraApp.outputs.backendAppObjectId : ''
+output ENTRA_BACKEND_CLIENT_ID string = resolvedEntraBackendClientId
+output ENTRA_BACKEND_APP_OBJECT_ID string = resolvedEntraBackendAppObjectId
 output APPLICATIONINSIGHTS_CONNECTION_STRING string = infrastructure.outputs.appInsightsConnectionString
 output APPLICATIONINSIGHTS_FRONTEND_CONNECTION_STRING string = infrastructure.outputs.appInsightsFrontendConnectionString
