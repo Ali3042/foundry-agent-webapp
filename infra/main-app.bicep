@@ -14,8 +14,6 @@ param oboManagedIdentityClientId string = ''
 param appInsightsConnectionString string = ''
 param appInsightsFrontendConnectionString string = ''
 
-var abbrs = loadJsonContent('./abbreviations.json')
-
 // Base env vars always present
 var baseEnv = [
   {
@@ -74,7 +72,7 @@ var containerEnv = concat(baseEnv, miEnv, oboEnv)
 module webApp './core/host/container-app.bicep' = {
   name: 'web-container-app'
   params: {
-    name: '${abbrs.appContainerApps}web-${resourceToken}'
+    name: 'sharecloud-frontend-app'
     location: location
     tags: union(tags, { 'azd-service-name': 'web' })
     containerAppsEnvironmentId: containerAppsEnvironmentId

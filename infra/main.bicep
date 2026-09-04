@@ -31,6 +31,18 @@ param webImageName string = 'mcr.microsoft.com/k8se/quickstart:latest'  // Place
 @description('Default tags applied by Azure Policy (optional)')
 param defaultTags object = {}
 
+// !PATCH Attributes for pre-configured app
+@description('Existing Entra SPA client ID. When supplied, Graph Bicep app creation is skipped.')
+param existingEntraSpaClientId string = ''
+
+// !PATCH Attributes for pre-configured app
+@description('Existing Entra SPA application object ID.')
+param existingEntraAppObjectId string = ''
+
+// !PATCH Attributes for pre-configured log workspace
+@description('Existing shared Log Analytics workspace resource ID')
+param existingLogAnalyticsWorkspaceId string
+
 var abbrs = loadJsonContent('./abbreviations.json')
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
 var appTags = {
@@ -41,7 +53,7 @@ var appTags = {
 var tags = union(defaultTags, appTags)
 
 resource rg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
-  name: '${abbrs.resourcesResourceGroups}${environmentName}'
+  name: '${environmentName}-rg'
   location: location
   tags: tags
 }
@@ -54,12 +66,14 @@ module infrastructure 'main-infrastructure.bicep' = {
     location: location
     tags: tags
     resourceToken: resourceToken
+    logAnalyticsWorkspaceId: existingLogAnalyticsWorkspaceId
   }
 }
 
 // Create Entra app registration (Microsoft Graph Bicep extension)
 // Creates with localhost-only redirect URIs; postprovision adds Container App FQDN + FIC
-module entraApp 'entra-app.bicep' = {
+// !PATCH Only if no existing app provided
+module entraApp 'entra-app.bicep' = if (empty(existingEntraSpaClientId)) {
   name: 'entra-app'
   scope: rg
   params: {
@@ -68,6 +82,15 @@ module entraApp 'entra-app.bicep' = {
     enableObo: enableObo
   }
 }
+
+// !PATCH App ingestion config
+var resolvedEntraSpaClientId = !empty(existingEntraSpaClientId)
+  ? existingEntraSpaClientId
+  : entraApp!.outputs.clientAppId
+
+var resolvedEntraAppObjectId = !empty(existingEntraAppObjectId)
+  ? existingEntraAppObjectId
+  : entraApp!.outputs.appObjectId
 
 // Deploy application (Container Apps + RBAC)
 module app 'main-app.bicep' = {
@@ -81,7 +104,7 @@ module app 'main-app.bicep' = {
     containerRegistryName: infrastructure.outputs.containerRegistryName
     aiAgentEndpoint: aiAgentEndpoint
     aiAgentId: aiAgentId
-    entraSpaClientId: entraApp.outputs.clientAppId
+    entraSpaClientId: resolvedEntraSpaClientId
     entraTenantId: entraTenantId
     entraBackendClientId: enableObo ? entraApp.outputs.backendClientAppId : ''
     webImageName: webImageName
@@ -102,8 +125,8 @@ output AZURE_RESOURCE_GROUP_NAME string = rg.name
 output AZURE_CONTAINER_APP_NAME string = app.outputs.webAppName
 output WEB_ENDPOINT string = app.outputs.webEndpoint
 output WEB_IDENTITY_PRINCIPAL_ID string = infrastructure.outputs.managedIdentityPrincipalId
-output ENTRA_SPA_CLIENT_ID string = entraApp.outputs.clientAppId
-output ENTRA_APP_OBJECT_ID string = entraApp.outputs.appObjectId
+output ENTRA_SPA_CLIENT_ID string = resolvedEntraSpaClientId
+output ENTRA_APP_OBJECT_ID string = resolvedEntraAppObjectId
 output ENTRA_BACKEND_CLIENT_ID string = enableObo ? entraApp.outputs.backendClientAppId : ''
 output ENTRA_BACKEND_APP_OBJECT_ID string = enableObo ? entraApp.outputs.backendAppObjectId : ''
 output APPLICATIONINSIGHTS_CONNECTION_STRING string = infrastructure.outputs.appInsightsConnectionString

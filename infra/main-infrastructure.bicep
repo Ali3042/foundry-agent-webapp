@@ -1,6 +1,13 @@
 param location string
 param tags object
 param resourceToken string
+// !PATCH Naming Conventions
+var resourcePrefix = 'sharecloud-frontend'
+var acrSuffix = substring(resourceToken, 0, 6)
+
+// !PATCH Define existing Log Workspace
+@description('Resource ID of the existing shared Log Analytics workspace')
+param logAnalyticsWorkspaceId string
 
 var abbrs = loadJsonContent('./abbreviations.json')
 
@@ -10,24 +17,14 @@ var defaultTags = {
 
 var allTags = union(tags, defaultTags)
 
-// Log Analytics Workspace
-module logAnalytics './core/host/log-analytics.bicep' = {
-  name: 'log-analytics'
-  params: {
-    name: '${abbrs.operationalInsightsWorkspaces}${resourceToken}'
-    location: location
-    tags: allTags
-  }
-}
-
 // Application Insights (backend)
 module appInsights './core/host/application-insights.bicep' = {
   name: 'appInsights'
   params: {
-    name: '${abbrs.insightsComponents}${resourceToken}'
+    name: '${resourcePrefix}-insights'
     location: location
     tags: allTags
-    logAnalyticsWorkspaceId: logAnalytics.outputs.id
+    logAnalyticsWorkspaceId: logAnalyticsWorkspaceId
   }
 }
 
@@ -35,10 +32,10 @@ module appInsights './core/host/application-insights.bicep' = {
 module appInsightsFrontend './core/host/application-insights.bicep' = {
   name: 'appInsightsFrontend'
   params: {
-    name: '${abbrs.insightsComponents}fe-${resourceToken}'
+    name: '${resourcePrefix}-insights-fe'
     location: location
     tags: allTags
-    logAnalyticsWorkspaceId: logAnalytics.outputs.id
+    logAnalyticsWorkspaceId: logAnalyticsWorkspaceId
   }
 }
 
@@ -46,7 +43,7 @@ module appInsightsFrontend './core/host/application-insights.bicep' = {
 module containerRegistry './core/host/container-registry.bicep' = {
   name: 'container-registry'
   params: {
-    name: '${abbrs.containerRegistryRegistries}${resourceToken}'
+    name: 'sharecloudfrontendacr${acrSuffix}'
     location: location
     tags: allTags
     acrPullPrincipalId: managedIdentity.properties.principalId
@@ -57,10 +54,10 @@ module containerRegistry './core/host/container-registry.bicep' = {
 module containerAppsEnvironment './core/host/container-apps-environment.bicep' = {
   name: 'container-apps-environment'
   params: {
-    name: '${abbrs.appManagedEnvironments}${resourceToken}'
+    name: '${resourcePrefix}-env'
     location: location
     tags: allTags
-    logAnalyticsWorkspaceId: logAnalytics.outputs.id
+    logAnalyticsWorkspaceId: logAnalyticsWorkspaceId
   }
 }
 
@@ -74,7 +71,7 @@ output containerAppsEnvironmentId string = containerAppsEnvironment.outputs.id
 // is available for both Entra FIC and Container App/ACR assignment without circular dependency.
 // isolationScope: Regional ensures the identity can only be used in the deployment region.
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2024-11-30' = {
-  name: '${abbrs.managedIdentityUserAssignedIdentities}web-${resourceToken}'
+  name: '${resourcePrefix}-identity'
   location: location
   tags: allTags
   properties: {

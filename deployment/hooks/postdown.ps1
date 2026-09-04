@@ -31,8 +31,13 @@ if ($webIdentityPrincipalId -and $aiFoundryResourceGroup -and $aiFoundryResource
     }
 }
 
+#! !PATCH Control app teardown 
+$externalEntraClientId = (azd env get-value ENTRA_EXISTING_SPA_CLIENT_ID 2>&1) |
+    Where-Object { $_ -notmatch 'ERROR' } |
+    Select-Object -First 1
+
 # Delete Entra app (Graph resources are NOT tied to Azure resource groups — azd down won't clean them up)
-if ($envName) {
+if ($envName -and [string]::IsNullOrWhiteSpace($externalEntraClientId)) {
     $clientId = (azd env get-value ENTRA_SPA_CLIENT_ID 2>&1) | Where-Object { $_ -notmatch 'ERROR' } | Select-Object -First 1
     $deleted = $false
     if (-not [string]::IsNullOrWhiteSpace($clientId)) {
@@ -49,6 +54,11 @@ if ($envName) {
             Write-Host "[OK] Entra app deleted (by name): $appName" -ForegroundColor Green
         }
     }
+}
+
+#! !PATCH Verbose preservation of entra app
+if (-not [string]::IsNullOrWhiteSpace($externalEntraClientId)) {
+    Write-Host "[SKIP] Existing Entra app preserved: $externalEntraClientId" -ForegroundColor Yellow
 }
 
 # Delete local config files
