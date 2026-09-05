@@ -41,6 +41,7 @@ public class AgentFrameworkService : IDisposable
     private readonly string? _tenantId;
     private readonly string? _managedIdentityClientId;
     private readonly bool _useUserDelegatedSearch;
+    private readonly Uri _searchMcpEndpoint;
     private readonly TokenCredential _fallbackCredential;
 
     // Agent metadata cache (static - shared across requests)
@@ -91,6 +92,10 @@ public class AgentFrameworkService : IDisposable
 
         _backendClientId = configuration["ENTRA_BACKEND_CLIENT_ID"];
         _tenantId = configuration["ENTRA_TENANT_ID"] ?? configuration["AzureAd:TenantId"];
+        _searchMcpEndpoint = new Uri(
+            configuration["AZURE_SEARCH_MCP_ENDPOINT"]
+            ?? "https://sharecloud-ai-search.search.windows.net/knowledgebases/sharecloud-kb/mcp?api-version=2026-08-01-preview");
+
         // User-assigned MI client ID — used for Foundry service authentication
         // and as the FIC assertion identity for delegated Search token acquisition.
         _managedIdentityClientId = configuration["MANAGED_IDENTITY_CLIENT_ID"]
@@ -201,16 +206,13 @@ public class AgentFrameworkService : IDisposable
 
     /// <summary>
     /// Acquires a short-lived Azure AI Search token representing the signed-in user.
-    /// This token is supplied separately to Foundry IQ for SharePoint permission-aware retrieval.
+    /// This token does not grant Search service access by itself; it is forwarded as
+    /// x-ms-query-source-authorization so remote SharePoint sources can permission-trim
+    /// retrieval to the user's existing access.
     /// </summary>
-    private async Task<string?> GetSearchAuthorizationTokenAsync(
+    private async Task<string> GetUserSearchAuthorizationTokenAsync(
         CancellationToken cancellationToken)
     {
-        if (!_useUserDelegatedSearch)
-        {
-            return null;
-        }
-
         var userToken = ExtractBearerToken();
 
         if (string.IsNullOrEmpty(userToken))
@@ -230,6 +232,63 @@ public class AgentFrameworkService : IDisposable
             "Acquired user-delegated Azure AI Search token for SharePoint retrieval.");
 
         return token.Token;
+    }
+
+    /// <summary>
+    /// Acquires the application Search token used to authenticate the MCP request itself.
+    /// The managed identity behind this token requires Search Index Data Reader on the
+    /// Azure AI Search service.
+    /// </summary>
+    private async Task<string> GetServiceSearchAuthorizationTokenAsync(
+        CancellationToken cancellationToken)
+    {
+        var token = await _fallbackCredential.GetTokenAsync(
+            new TokenRequestContext(
+                ["https://search.azure.com/.default"]),
+            cancellationToken);
+
+        _logger.LogDebug(
+            "Acquired application Azure AI Search token for MCP service authentication.");
+
+        return token.Token;
+    }
+
+    /// <summary>
+    /// Builds the Foundry IQ MCP tool for this request. Service authentication and end-user
+    /// content authorization are intentionally carried in separate headers.
+    /// </summary>
+    private async Task<McpTool?> CreateKnowledgeBaseMcpToolAsync(
+        CancellationToken cancellationToken)
+    {
+        if (!_useUserDelegatedSearch)
+        {
+            return null;
+        }
+
+        var serviceSearchToken =
+            await GetServiceSearchAuthorizationTokenAsync(cancellationToken);
+        var userSearchToken =
+            await GetUserSearchAuthorizationTokenAsync(cancellationToken);
+
+        var mcpTool = ResponseTool.CreateMcpTool(
+            serverLabel: "sharecloud-kb",
+            serverUri: _searchMcpEndpoint,
+            headers: new Dictionary<string, string>
+            {
+                ["Authorization"] = $"Bearer {serviceSearchToken}",
+                ["x-ms-query-source-authorization"] = userSearchToken
+            },
+            allowedTools: new McpToolFilter
+            {
+                ToolNames = { "knowledge_base_retrieve" }
+            },
+            toolCallApprovalPolicy: new McpToolCallApprovalPolicy(
+                GlobalMcpToolCallApprovalPolicy.NeverRequireApproval));
+
+        _logger.LogDebug(
+            "Configured request-level Foundry IQ MCP tool with separate service and user authorization.");
+
+        return mcpTool;
     }
 
     /// <summary>
@@ -349,14 +408,15 @@ public class AgentFrameworkService : IDisposable
 
         CreateResponseOptions options = new() { StreamingEnabled = true };
 
-        // Acquire and attach the user's delegated Search token for permission-aware retrieval.
-        var searchAuthorizationToken =
-            await GetSearchAuthorizationTokenAsync(cancellationToken);
+        // Attach the Foundry IQ MCP tool at request time. This avoids persisting the reserved
+        // x-ms-query-source-authorization header in the agent definition, while preserving
+        // the separation between service authentication and end-user permission context.
+        var knowledgeBaseTool =
+            await CreateKnowledgeBaseMcpToolAsync(cancellationToken);
 
-        if (!string.IsNullOrEmpty(searchAuthorizationToken))
+        if (knowledgeBaseTool is not null)
         {
-            options.StructuredInputs["search_auth_token"] =
-                BinaryData.FromObjectAsJson(searchAuthorizationToken);
+            options.Tools.Add(knowledgeBaseTool);
         }
 
         // Resolve the concrete agent version up front so streaming and metadata use the same version.
