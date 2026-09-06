@@ -4,8 +4,8 @@ import {
   ImperativeControlPlugin,
   type ImperativeControlPluginRef,
 } from '@fluentui-copilot/react-copilot';
-import { Button, Toast, ToastTitle, Toaster, useId, useToastController, Text, makeStyles, tokens, Menu, MenuTrigger, MenuPopover, MenuList, MenuItem } from '@fluentui/react-components';
-import { Attach24Regular, Stop24Regular, MoreHorizontal24Regular, History24Regular, Settings24Regular, ChatAdd24Regular, ArrowDownload24Regular, Keyboard24Regular } from '@fluentui/react-icons';
+import { Button, Tooltip, Toast, ToastTitle, Toaster, useId, useToastController, Text, makeStyles, tokens, Menu, MenuTrigger, MenuPopover, MenuList, MenuItem } from '@fluentui/react-components';
+import { Attach24Regular, Stop24Regular, MoreHorizontal24Regular, Settings24Regular, ArrowDownload24Regular, Keyboard24Regular } from '@fluentui/react-icons';
 import { FilePreview } from './FilePreview';
 import { VoiceInput } from './VoiceInput';
 import { MessageQueue } from './MessageQueue';
@@ -42,8 +42,6 @@ interface ChatInputProps {
   disabled?: boolean;
   placeholder?: string;
   onOpenSettings?: () => void;
-  onNewChat?: () => void;
-  onToggleSidebar?: () => void;
   onExportConversation?: () => void;
   onShowShortcuts?: () => void;
   hasMessages?: boolean;
@@ -58,6 +56,8 @@ interface ChatInputProps {
   onDequeueMessage?: (index: number) => void;
   droppedFiles?: File[];
   onDroppedFilesConsumed?: () => void;
+  prefillValue?: string;
+  onPrefillConsumed?: () => void;
 }
 
 const focusInput = (containerRef: React.RefObject<HTMLDivElement | null>) => {
@@ -72,8 +72,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   disabled = false,
   placeholder = "Type your message...",
   onOpenSettings,
-  onNewChat,
-  onToggleSidebar,
   onExportConversation,
   onShowShortcuts,
   hasMessages = false,
@@ -88,6 +86,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onDequeueMessage,
   droppedFiles,
   onDroppedFilesConsumed,
+  prefillValue,
+  onPrefillConsumed,
 }) => {
   const [inputText, setInputText] = useState<string>("");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -161,6 +161,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
   }, [recoveredInput, recoveredAttachments, onRecoveredInputConsumed]);
 
+  // Populate starter templates without submitting them.
+  useEffect(() => {
+    if (!prefillValue) return;
+    setInputText(prefillValue);
+    controlRef.current?.setInputText(prefillValue);
+    onPrefillConsumed?.();
+    const timer = setTimeout(() => focusInput(inputContainerRef), 50);
+    return () => clearTimeout(timer);
+  }, [prefillValue, onPrefillConsumed]);
   // Clear input when edit is cancelled
   const prevEditingRef = useRef(isEditing);
   useEffect(() => {
@@ -372,35 +381,30 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         )}
         <div className={styles.buttonRow}>
           <div className={styles.actionButtons}>
-            <Button
-              appearance="subtle"
-              icon={<Attach24Regular />}
-              onClick={handleAttachClick}
-              disabled={disabled}
-              aria-label="Attach files"
-            />
-            <Button
-              appearance="subtle"
-              icon={<Stop24Regular />}
-              onClick={isEditing ? onCancelEdit : handleCancelStream}
-              disabled={!isStreaming && !isEditing}
-              aria-label={isEditing ? "Cancel edit" : "Cancel response"}
-              title={isEditing ? "Cancel edit" : undefined}
-              className={styles.cancelButton}
-            />
+            <Tooltip content="Attach files" relationship="label">
+              <Button
+                appearance="subtle"
+                icon={<Attach24Regular />}
+                onClick={handleAttachClick}
+                disabled={disabled}
+                aria-label="Attach files"
+              />
+            </Tooltip>
+            {(isStreaming || isEditing) && (
+              <Tooltip content={isEditing ? "Cancel edit" : "Cancel response"} relationship="label">
+                <Button
+                  appearance="subtle"
+                  icon={<Stop24Regular />}
+                  onClick={isEditing ? onCancelEdit : handleCancelStream}
+                  aria-label={isEditing ? "Cancel edit" : "Cancel response"}
+                  className={styles.cancelButton}
+                />
+              </Tooltip>
+            )}
             <VoiceInput
               onTranscript={handleVoiceTranscript}
               disabled={disabled}
             />
-            {onNewChat && (
-              <Button
-                appearance="subtle"
-                icon={<ChatAdd24Regular />}
-                onClick={onNewChat}
-                disabled={disabled || !hasMessages}
-                aria-label="New chat"
-              />
-            )}
             <Menu>
               <MenuTrigger disableButtonEnhancement>
                 <Button
@@ -411,11 +415,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               </MenuTrigger>
               <MenuPopover>
                 <MenuList>
-                  {onToggleSidebar && (
-                    <MenuItem icon={<History24Regular />} onClick={onToggleSidebar} disabled={disabled}>
-                      Conversation history
-                    </MenuItem>
-                  )}
                   {onExportConversation && (
                     <MenuItem icon={<ArrowDownload24Regular />} onClick={onExportConversation} disabled={disabled || !hasMessages}>
                       Export as Markdown

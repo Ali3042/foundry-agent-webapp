@@ -5,11 +5,10 @@ import { McpApprovalCard } from "./chat/McpApprovalCard";
 import { StarterMessages } from "./chat/StarterMessages";
 import { ChatInput } from "./chat/ChatInput";
 import { DropZone } from "./chat/DropZone";
-import { Waves } from "./animations/Waves";
 import { ErrorMessage } from "./core/ErrorMessage";
 import { KeyboardShortcuts } from "./core/KeyboardShortcuts";
-import { BuiltWithBadge } from "./core/BuiltWithBadge";
 import { ShareCloudContextBar } from "./ShareCloudContextBar";
+import { ShareCloudHeader } from "./ShareCloudHeader";
 import type { IChatItem } from "../types/chat";
 import type { IndustryContext, InteractionMode } from "../types/sharecloud";
 import type { AppState } from "../types/appState";
@@ -54,7 +53,7 @@ interface ChatInterfaceProps {
 }
 
 export const ChatInterface: React.FC<ChatInterfaceProps> = (props) => {
-  const { messages, status, error, streamingMessageId, recoveredInput, recoveredAttachments, pendingMessages, onSendMessage, onMcpApproval, onClearError, onRecoveredInputConsumed, onDequeueMessage, onOpenSettings, onNewChat, onCancelStream, onToggleSidebar, onExportConversation, onRegenerate, onEditMessage, onCancelEdit, isEditing, onFeedback, onDownloadFile, hasMessages, disabled, agentName, agentDescription, agentLogo, starterPrompts, conversationId } = props;
+  const { messages, status, error, streamingMessageId, recoveredInput, recoveredAttachments, pendingMessages, onSendMessage, onMcpApproval, onClearError, onRecoveredInputConsumed, onDequeueMessage, onOpenSettings, onNewChat, onCancelStream, onExportConversation, onRegenerate, onEditMessage, onCancelEdit, isEditing, onFeedback, onDownloadFile, hasMessages, disabled, agentName, agentDescription, agentLogo, starterPrompts, conversationId } = props;
   const deferredMessages = useDeferredValue(messages);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [liveRegionMessage, setLiveRegionMessage] = useState<string>('');
@@ -63,6 +62,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = (props) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [droppedFiles, setDroppedFiles] = useState<File[] | undefined>();
+  const [starterDraft, setStarterDraft] = useState<string | undefined>();
   const dragCounterRef = useRef(0);
   const observerRef = useRef<IntersectionObserver | null>(null);
   
@@ -78,6 +78,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = (props) => {
 
   const handleShowShortcuts = useCallback(() => setIsShortcutsOpen(true), []);
   const handleDroppedFilesConsumed = useCallback(() => setDroppedFiles(undefined), []);
+  const handleNewChatRequest = useCallback(() => {
+    setStarterDraft(undefined);
+    onNewChat?.();
+  }, [onNewChat]);
 
   // Track whether user is near the bottom via IntersectionObserver
   useEffect(() => {
@@ -123,7 +127,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = (props) => {
   };
 
   const handleStarterPromptClick = (prompt: string) => {
-    handleSendMessage(prompt);
+    setStarterDraft(prompt);
   };
 
   // Drag-drop handlers
@@ -168,13 +172,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = (props) => {
       // Ctrl/Cmd+N → new chat
       if (e.key === 'n' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
-        onNewChat?.();
+        handleNewChatRequest();
       }
     };
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onNewChat]);
+  }, [handleNewChatRequest]);
 
   return (
     <div
@@ -195,6 +199,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = (props) => {
       >
         {liveRegionMessage}
       </div>
+
+      <ShareCloudHeader
+        onNewChat={handleNewChatRequest}
+        disabled={isBusy || isStreaming}
+      />
 
       <div 
         className={styles.messagesContainer} 
@@ -311,15 +320,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = (props) => {
           onInteractionModeChange={props.onInteractionModeChange}
           onIndustryContextChange={props.onIndustryContextChange}
         />
-        <Waves />
         <ChatInput
           onSubmit={handleSendMessage}
           disabled={isBusy}
           onOpenSettings={onOpenSettings}
-          onNewChat={onNewChat}
-          onToggleSidebar={onToggleSidebar}
           hasMessages={hasMessages}
           placeholder={inputPlaceholder}
+          prefillValue={starterDraft}
+          onPrefillConsumed={() => setStarterDraft(undefined)}
           isStreaming={isStreaming}
           onCancelStream={isStreaming && onCancelStream ? onCancelStream : undefined}
           isEditing={isEditing}
@@ -334,7 +342,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = (props) => {
           droppedFiles={droppedFiles}
           onDroppedFilesConsumed={handleDroppedFilesConsumed}
         />
-        <BuiltWithBadge className={styles.builtWithBadge} />
+        <p className={styles.trustCue}>
+          AI-generated working material <span aria-hidden="true">•</span> Review sources before reuse
+        </p>
       </div>
     </div>
   );

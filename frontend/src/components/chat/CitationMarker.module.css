@@ -1,46 +1,46 @@
-/* Inline citation marker - superscript badge */
 .citationMarker {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.7em;
-  font-weight: 600;
-  min-width: 1.2em;
-  height: 1.2em;
-  padding: 0 0.3em;
+  min-width: 1.35em;
+  height: 1.35em;
   margin: 0 0.1em;
+  padding: 0 0.34em;
+  border: 1px solid color-mix(in srgb, var(--colorBrandStroke1) 58%, transparent);
   border-radius: 4px;
-  background-color: var(--colorBrandBackground2);
+  background: color-mix(in srgb, var(--colorBrandBackground) 15%, transparent);
   color: var(--colorBrandForeground1);
-  cursor: pointer;
-  vertical-align: super;
+  font-size: 0.7em;
+  font-weight: 700;
   line-height: 1;
-  transition: background-color 0.15s ease, transform 0.1s ease;
+  vertical-align: super;
+  cursor: pointer;
   user-select: none;
+  transition: background-color 0.15s ease, transform 0.1s ease, border-color 0.15s ease;
 }
 
 .citationMarker:hover {
-  background-color: var(--colorBrandBackground2Hover);
-  transform: scale(1.1);
+  transform: translateY(-1px);
+  border-color: var(--colorBrandStroke1);
+  background: color-mix(in srgb, var(--colorBrandBackground) 24%, transparent);
 }
 
 .citationMarker:focus-visible {
   outline: 2px solid var(--colorBrandStroke1);
-  outline-offset: 1px;
+  outline-offset: 2px;
 }
 
 .citationMarker:active {
-  transform: scale(0.95);
+  transform: scale(0.96);
 }
 
-/* Highlight animation when scrolled to */
 .highlight {
   animation: highlightPulse 2s ease-out;
 }
 
 @keyframes highlightPulse {
   0% {
-    box-shadow: 0 0 0 4px var(--colorBrandBackground2);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--colorBrandBackground) 28%, transparent);
   }
   100% {
     box-shadow: 0 0 0 0 transparent;
