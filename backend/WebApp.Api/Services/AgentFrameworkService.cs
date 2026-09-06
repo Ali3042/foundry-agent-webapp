@@ -355,8 +355,11 @@ public class AgentFrameworkService : IDisposable
 
         if (!string.IsNullOrEmpty(searchAuthorizationToken))
         {
-            options.StructuredInputs["search_auth_token"] =
-                BinaryData.FromObjectAsJson(searchAuthorizationToken);
+#pragma warning disable SCME0001
+            options.Patch.Set(
+                "$.structured_inputs.search_auth_token"u8,
+                searchAuthorizationToken);
+#pragma warning restore SCME0001
         }
 
         // Resolve the concrete agent version up front so streaming and metadata use the same version.
