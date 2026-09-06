@@ -222,3 +222,47 @@
   align-items: center;
   gap: 8px;
 }
+
+/* SHARECLOUD_VISUAL_REFRESH_START */
+.copilotMessage {
+  margin: 0;
+  padding: 8px 0;
+}
+
+.toolUseIndicator,
+.retryingState {
+  color: var(--colorNeutralForeground3);
+  font-size: var(--fontSizeBase200);
+}
+
+.loadingDots span {
+  background-color: var(--colorBrandForeground1);
+}
+
+.citationList {
+  gap: 7px;
+  margin-top: 14px;
+}
+
+.citation {
+  border-color: var(--colorNeutralStroke2);
+  border-radius: 7px;
+  background-color: var(--colorNeutralBackground2);
+}
+
+.citationClickable:hover {
+  border-color: var(--colorBrandStroke1);
+  box-shadow: var(--shadow4);
+}
+
+.citationNumber {
+  background: color-mix(in srgb, var(--colorBrandBackground) 13%, var(--colorNeutralBackground3));
+  color: var(--colorBrandForeground1);
+  font-weight: var(--fontWeightBold);
+}
+
+.citationCount {
+  background: color-mix(in srgb, var(--colorBrandBackground) 16%, transparent);
+  color: var(--colorBrandForeground1);
+}
+/* SHARECLOUD_VISUAL_REFRESH_END */

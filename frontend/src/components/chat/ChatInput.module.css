@@ -1,68 +1,83 @@
 .chatInputContainer {
-  padding: 1rem;
+  padding: 0.35rem 1rem 0.45rem;
   background: transparent;
   width: 100%;
-  max-width: 900px;
+  max-width: 960px;
   margin: 0 auto;
   flex-shrink: 0;
   position: relative;
-  z-index: 1;
+  z-index: 2;
+  box-sizing: border-box;
 }
 
 .inputWrapper {
   position: relative;
   width: 100%;
-  border-radius: 8px;
-  background: var(--colorNeutralBackground1);
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--colorNeutralBackground2);
   border: 1px solid var(--colorNeutralStroke1);
-  box-shadow: var(--shadow4);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: var(--shadow8);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .inputWrapper:focus-within {
   border-color: var(--colorBrandStroke1);
-  box-shadow: var(--shadow8);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--colorBrandStroke1) 18%, transparent), var(--shadow16);
 }
 
 .inputWrapper :global(.fui-ChatInput) {
-  max-height: 120px;
   width: 100%;
+  max-height: 190px;
+  min-height: 84px;
   background: transparent;
   border: none;
-  border-radius: 8px;
+  border-radius: 14px 14px 0 0;
 }
 
-.inputWrapper :global(.fui-ChatInput) :global(textarea) {
+.inputWrapper :global(.fui-ChatInput) :global(textarea),
+.inputWrapper :global(.fui-ChatInput) :global([contenteditable="true"]) {
+  min-height: 64px;
+  padding-top: 0.3rem;
   background: transparent;
-  min-height: 40px;
+  line-height: 1.5;
 }
 
 .inputWrapper :global(.fui-ChatInput) :global(.fui-ChatInput__container) {
   background: transparent;
 }
 
-/* Style the built-in send button to match our subtle buttons */
+/* The Copilot chat component's internal button is the primary send action. */
 .inputWrapper :global(.fui-ChatInput) :global(button) {
-  color: var(--colorNeutralForeground2);
-  background: transparent !important;
+  width: 38px;
+  height: 38px;
+  margin: 7px;
   border: none;
+  border-radius: 999px;
+  background: var(--colorBrandBackground) !important;
+  color: var(--colorNeutralForegroundOnBrand) !important;
+  box-shadow: none;
 }
 
 .inputWrapper :global(.fui-ChatInput) :global(button:hover:enabled) {
-  color: var(--colorNeutralForeground2Hover);
-  background: var(--colorSubtleBackgroundHover) !important;
+  background: var(--colorBrandBackgroundHover) !important;
+  color: var(--colorNeutralForegroundOnBrand) !important;
 }
 
 .inputWrapper :global(.fui-ChatInput) :global(button:active:enabled) {
-  color: var(--colorNeutralForeground2Pressed);
-  background: var(--colorSubtleBackgroundPressed) !important;
+  background: var(--colorBrandBackgroundPressed) !important;
+}
+
+.inputWrapper :global(.fui-ChatInput) :global(button:focus-visible) {
+  outline: 2px solid var(--colorStrokeFocus2);
+  outline-offset: 2px;
 }
 
 .inputWrapper :global(.fui-ChatInput) :global(button:disabled) {
-  color: var(--colorNeutralForegroundDisabled);
-  background: transparent !important;
+  background: var(--colorNeutralBackgroundDisabled) !important;
+  color: var(--colorNeutralForegroundDisabled) !important;
   cursor: not-allowed;
-  opacity: 0.4;
+  opacity: 0.75;
 }
 
 .attachmentsPreview {
@@ -70,8 +85,7 @@
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-bottom: 0.75rem;
-  padding: 0.75rem;
-  padding-bottom: 0.25rem;
+  padding: 0.75rem 0.75rem 0.25rem;
 }
 
 .attachmentItem {
@@ -79,15 +93,15 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 0.75rem;
-  background: var(--colorNeutralBackground2);
-  border: 1px solid var(--colorNeutralStroke1);
-  border-radius: 4px;
+  background: var(--colorNeutralBackground3);
+  border: 1px solid var(--colorNeutralStroke2);
+  border-radius: 7px;
   font-size: 0.875rem;
   transition: background 0.2s ease;
 }
 
 .attachmentItem:hover {
-  background: var(--colorNeutralBackground3);
+  background: var(--colorNeutralBackground3Hover);
 }
 
 .attachmentName {
@@ -107,8 +121,9 @@
 .buttonRow {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  padding: 0.5rem 0.75rem;
+  justify-content: flex-start;
+  min-height: 48px;
+  padding: 0.35rem 0.55rem;
   border-top: 1px solid var(--colorNeutralStroke2);
   gap: 0.5rem;
 }
@@ -116,7 +131,22 @@
 .actionButtons {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.1rem;
+}
+
+.actionButtons :global(.fui-Button) {
+  border-radius: 7px;
+  color: var(--colorNeutralForeground3);
+}
+
+.actionButtons :global(.fui-Button:hover) {
+  color: var(--colorNeutralForeground2Hover);
+  background: var(--colorNeutralBackground3Hover);
+}
+
+.actionButtons :global(.fui-Button:focus-visible) {
+  outline: 2px solid var(--colorBrandStroke1);
+  outline-offset: 2px;
 }
 
 .divider {
@@ -127,5 +157,15 @@
 }
 
 .cancelButton {
-  margin-left: 0.25rem;
+  color: var(--colorPaletteRedForeground1) !important;
+}
+
+@media (max-width: 650px) {
+  .chatInputContainer {
+    padding: 0.35rem 0.75rem 0.35rem;
+  }
+
+  .inputWrapper :global(.fui-ChatInput) {
+    min-height: 92px;
+  }
 }

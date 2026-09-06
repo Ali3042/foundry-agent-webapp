@@ -1,0 +1,68 @@
+.header {
+  position: relative;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 68px;
+  width: 100%;
+  padding: 11px clamp(18px, 3vw, 42px);
+  border-bottom: 1px solid var(--colorNeutralStroke2);
+  background: color-mix(in srgb, var(--colorNeutralBackground1) 94%, transparent);
+  backdrop-filter: blur(16px);
+  box-sizing: border-box;
+}
+
+.lockup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.titleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.title {
+  color: var(--colorNeutralForeground1);
+  font-size: var(--fontSizeBase400);
+  font-weight: var(--fontWeightSemibold);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.subtitle {
+  color: var(--colorNeutralForeground3);
+  font-size: var(--fontSizeBase200);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.newChatButton {
+  flex: 0 0 auto;
+  min-height: 38px;
+  border-radius: 7px;
+  font-weight: var(--fontWeightSemibold);
+  box-shadow: none;
+}
+
+@media (max-width: 600px) {
+  .header {
+    min-height: 62px;
+    padding: 10px 14px;
+  }
+
+  .subtitle {
+    display: none;
+  }
+
+  .newChatButton {
+    min-height: 36px;
+    padding-inline: 10px;
+  }
+}

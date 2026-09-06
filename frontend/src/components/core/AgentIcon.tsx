@@ -1,5 +1,5 @@
-import { Avatar } from '@fluentui/react-components';
-import { Bot24Regular } from '@fluentui/react-icons';
+import { ShareCloudMark } from '../icons/ShareCloudMark';
+import styles from './AgentIcon.module.css';
 
 interface AgentIconProps {
   alt?: string;
@@ -7,24 +7,42 @@ interface AgentIconProps {
   logoUrl?: string;
 }
 
-export function AgentIcon({ 
-  alt = "AI Assistant", 
+const sizeMap = {
+  small: 32,
+  medium: 40,
+  large: 48,
+} as const;
+
+export function AgentIcon({
+  alt = 'ShareCloud Bids',
   size = 'medium',
-  logoUrl
+  logoUrl,
 }: AgentIconProps) {
-  const sizeMap: Record<string, number> = {
-    small: 32,
-    medium: 40,
-    large: 48,
-  };
+  const pixels = sizeMap[size];
+  const hasApprovedCustomLogo = Boolean(
+    logoUrl && !logoUrl.toLowerCase().includes('avatar_default')
+  );
+
+  if (hasApprovedCustomLogo) {
+    return (
+      <img
+        src={logoUrl}
+        alt={alt}
+        width={pixels}
+        height={pixels}
+        className={styles.customLogo}
+      />
+    );
+  }
 
   return (
-    <Avatar
+    <span
+      className={styles.markContainer}
+      role="img"
       aria-label={alt}
-      image={logoUrl ? { src: logoUrl } : undefined}
-      icon={!logoUrl ? <Bot24Regular /> : undefined}
-      size={sizeMap[size] as 16 | 20 | 24 | 28 | 32 | 36 | 40 | 48 | 56 | 64 | 72 | 96 | 120 | 128}
-      color="brand"
-    />
+      style={{ width: pixels, height: pixels }}
+    >
+      <ShareCloudMark size={Math.round(pixels * 0.72)} />
+    </span>
   );
 }
