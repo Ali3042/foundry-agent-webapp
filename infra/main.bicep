@@ -16,6 +16,9 @@ param aiAgentEndpoint string = ''
 @description('AI Agent ID (configured via azd env set AI_AGENT_ID)')
 param aiAgentId string = ''
 
+@description('Concrete AI Agent version for reproducible deployments')
+param aiAgentVersion string = ''
+
 @description('Entra ID Tenant ID (set by azd hook or auto-detected)')
 param entraTenantId string = tenant().tenantId
 
@@ -121,6 +124,7 @@ module app 'main-app.bicep' = {
     containerRegistryName: infrastructure.outputs.containerRegistryName
     aiAgentEndpoint: aiAgentEndpoint
     aiAgentId: aiAgentId
+    aiAgentVersion: aiAgentVersion
     entraSpaClientId: resolvedEntraSpaClientId
     entraTenantId: entraTenantId
     entraBackendClientId: resolvedEntraBackendClientId

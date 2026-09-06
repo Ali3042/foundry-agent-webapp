@@ -22,6 +22,7 @@ env:
   IMAGE_REPOSITORY: ${{ vars.IMAGE_REPOSITORY }}
   ENTRA_SPA_CLIENT_ID: ${{ vars.ENTRA_EXISTING_SPA_CLIENT_ID }}
   ENTRA_BACKEND_CLIENT_ID: ${{ vars.ENTRA_EXISTING_BACKEND_CLIENT_ID }}
+  AZURE_EXISTING_AGENT_ID: ${{ vars.AZURE_EXISTING_AGENT_ID }}
 
 jobs:
   build-and-deploy:
@@ -62,10 +63,17 @@ jobs:
 
       - name: Deploy image to Container App
         run: |
+          AGENT_NAME="${AZURE_EXISTING_AGENT_ID%:*}"
+          AGENT_VERSION="${AZURE_EXISTING_AGENT_ID##*:}"
+
           az containerapp update \
             --name "$CONTAINER_APP" \
             --resource-group "$RESOURCE_GROUP" \
             --image "$IMAGE" \
+            --set-env-vars \
+              ENTRA_BACKEND_CLIENT_ID="$ENTRA_BACKEND_CLIENT_ID" \
+              AI_AGENT_ID="$AGENT_NAME" \
+              AI_AGENT_VERSION="$AGENT_VERSION" \
             --output none
 
       - name: Verify deployed image
