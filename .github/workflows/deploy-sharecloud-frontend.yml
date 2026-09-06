@@ -16,11 +16,13 @@ permissions:
   contents: read
 
 env:
-  ACR_NAME: sharecloudfrontendacrpbtau4
-  RESOURCE_GROUP: sharecloud-frontend-rg
-  CONTAINER_APP: sharecloud-frontend-app
-  IMAGE_REPOSITORY: web
-  ENTRA_SPA_CLIENT_ID: 26430891-8fdf-484a-8bb7-2a7eea94b944
+  ACR_NAME: ${{ vars.ACR_NAME }}
+  RESOURCE_GROUP: ${{ vars.RESOURCE_GROUP }}
+  CONTAINER_APP: ${{ vars.CONTAINER_APP }}
+  IMAGE_REPOSITORY: ${{ vars.IMAGE_REPOSITORY }}
+  ENTRA_SPA_CLIENT_ID: ${{ vars.ENTRA_EXISTING_SPA_CLIENT_ID }}
+  ENTRA_BACKEND_CLIENT_ID: ${{ vars.ENTRA_EXISTING_BACKEND_CLIENT_ID }}
+  AZURE_EXISTING_AGENT_ID: ${{ vars.AZURE_EXISTING_AGENT_ID }}
 
 jobs:
   build-and-deploy:
@@ -48,6 +50,7 @@ jobs:
             --platform linux/amd64 \
             --build-arg ENTRA_SPA_CLIENT_ID="$ENTRA_SPA_CLIENT_ID" \
             --build-arg ENTRA_TENANT_ID="${{ secrets.AZURE_TENANT_ID }}" \
+            --build-arg ENTRA_BACKEND_CLIENT_ID="$ENTRA_BACKEND_CLIENT_ID" \
             --build-arg APPLICATIONINSIGHTS_FRONTEND_CONNECTION_STRING="${{ secrets.APPLICATIONINSIGHTS_FRONTEND_CONNECTION_STRING }}" \
             -f deployment/docker/frontend.Dockerfile \
             -t "$IMAGE" \
@@ -60,10 +63,17 @@ jobs:
 
       - name: Deploy image to Container App
         run: |
+          AGENT_NAME="${AZURE_EXISTING_AGENT_ID%:*}"
+          AGENT_VERSION="${AZURE_EXISTING_AGENT_ID##*:}"
+
           az containerapp update \
             --name "$CONTAINER_APP" \
             --resource-group "$RESOURCE_GROUP" \
             --image "$IMAGE" \
+            --set-env-vars \
+              ENTRA_BACKEND_CLIENT_ID="$ENTRA_BACKEND_CLIENT_ID" \
+              AI_AGENT_ID="$AGENT_NAME" \
+              AI_AGENT_VERSION="$AGENT_VERSION" \
             --output none
 
       - name: Verify deployed image

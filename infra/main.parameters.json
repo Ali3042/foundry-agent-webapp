@@ -23,6 +23,9 @@
     "aiAgentId": {
       "value": "${AI_AGENT_ID=}"
     },
+    "aiAgentVersion": {
+      "value": "${AI_AGENT_VERSION=}"
+    },
     "enableObo": {
       "value": "${ENABLE_OBO=false}"
     },
@@ -34,6 +37,12 @@
     },
     "existingLogAnalyticsWorkspaceId": {
     "value": "${AZURE_EXISTING_LOG_ANALYTICS_WORKSPACE_ID}"
+    },
+    "existingEntraBackendClientId": {
+    "value": "${ENTRA_EXISTING_BACKEND_CLIENT_ID}"
+    },
+    "existingEntraBackendAppObjectId": {
+    "value": "${ENTRA_EXISTING_BACKEND_APP_OBJECT_ID}"
     }
   }
 }

@@ -5,6 +5,7 @@ param containerAppsEnvironmentId string
 param containerRegistryName string
 param aiAgentEndpoint string
 param aiAgentId string
+param aiAgentVersion string = ''
 param entraSpaClientId string
 param entraTenantId string
 param entraBackendClientId string = ''
@@ -41,6 +42,10 @@ var baseEnv = [
     value: aiAgentId
   }
   {
+    name: 'AI_AGENT_VERSION'
+    value: aiAgentVersion
+  }
+  {
     name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
     value: appInsightsConnectionString
   }
@@ -58,15 +63,15 @@ var miEnv = [
   }
 ]
 
-// OBO env vars only injected when configured
-var oboEnv = !empty(entraBackendClientId) ? [
+// User-delegated Search env vars are injected when the backend Entra app is configured.
+var delegatedSearchEnv = !empty(entraBackendClientId) ? [
   {
     name: 'ENTRA_BACKEND_CLIENT_ID'
     value: entraBackendClientId
   }
 ] : []
 
-var containerEnv = concat(baseEnv, miEnv, oboEnv)
+var containerEnv = concat(baseEnv, miEnv, delegatedSearchEnv)
 
 // Single Container App - serves both frontend and backend
 module webApp './core/host/container-app.bicep' = {
