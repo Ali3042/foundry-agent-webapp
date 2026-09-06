@@ -1,0 +1,49 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.46.1.21595",
+      "templateHash": "8912715851340128196"
+    }
+  },
+  "parameters": {
+    "names": {
+      "type": "object",
+      "defaultValue": {
+        "virtualNetwork": "sharecloud-vnet",
+        "logAnalytics": "sharecloud-log-workspace",
+        "applicationInsights": "sharecloud-app-insights",
+        "storageAccount": "sharecloudstorage",
+        "cosmosAccount": "sharecloud-cosmos-db",
+        "keyVault": "sharecloud-kv",
+        "searchService": "sharecloud-ai-search",
+        "foundryAccount": "sharecloud-foundry-instance",
+        "foundryProject": "proj-default",
+        "modelDeployment": "gpt-5-mini"
+      },
+      "metadata": {
+        "description": "Read-only existence audit. This template declares no managed resources and therefore changes nothing."
+      }
+    }
+  },
+  "resources": [],
+  "outputs": {
+    "resourceIds": {
+      "type": "object",
+      "value": {
+        "virtualNetwork": "[resourceId('Microsoft.Network/virtualNetworks', parameters('names').virtualNetwork)]",
+        "logAnalytics": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('names').logAnalytics)]",
+        "applicationInsights": "[resourceId('Microsoft.Insights/components', parameters('names').applicationInsights)]",
+        "storageAccount": "[resourceId('Microsoft.Storage/storageAccounts', parameters('names').storageAccount)]",
+        "cosmosAccount": "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('names').cosmosAccount)]",
+        "keyVault": "[resourceId('Microsoft.KeyVault/vaults', parameters('names').keyVault)]",
+        "searchService": "[resourceId('Microsoft.Search/searchServices', parameters('names').searchService)]",
+        "foundryAccount": "[resourceId('Microsoft.CognitiveServices/accounts', parameters('names').foundryAccount)]",
+        "foundryProject": "[resourceId('Microsoft.CognitiveServices/accounts/projects', parameters('names').foundryAccount, parameters('names').foundryProject)]",
+        "modelDeployment": "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('names').foundryAccount, parameters('names').modelDeployment)]"
+      }
+    }
+  }
+}

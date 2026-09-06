@@ -1,0 +1,1340 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.46.1.21595",
+      "templateHash": "17744976872632210075"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "francecentral",
+      "metadata": {
+        "description": "Azure region used by the existing ShareCloud backend resources."
+      }
+    },
+    "tenantId": {
+      "type": "string",
+      "defaultValue": "[tenant().tenantId]",
+      "metadata": {
+        "description": "Microsoft Entra tenant ID. Defaults to the deployment tenant."
+      }
+    },
+    "names": {
+      "type": "object",
+      "defaultValue": {
+        "virtualNetwork": "sharecloud-vnet",
+        "subnet": "default",
+        "logAnalytics": "sharecloud-log-workspace",
+        "applicationInsights": "sharecloud-app-insights",
+        "storageAccount": "sharecloudstorage",
+        "cosmosAccount": "sharecloud-cosmos-db",
+        "keyVault": "sharecloud-kv",
+        "searchService": "sharecloud-ai-search",
+        "foundryAccount": "sharecloud-foundry-instance",
+        "foundryProject": "proj-default",
+        "modelDeployment": "gpt-5-mini"
+      },
+      "metadata": {
+        "description": "Resource names. Defaults match the adopted ShareCloud environment."
+      }
+    },
+    "tags": {
+      "type": "object",
+      "defaultValue": {},
+      "metadata": {
+        "description": "Tags applied to resources that currently have no resource-specific tag set."
+      }
+    },
+    "cosmosTags": {
+      "type": "object",
+      "defaultValue": {
+        "defaultExperience": "Core (SQL)",
+        "hidden-cosmos-mmspecial": "",
+        "hidden-workload-type": "Development/Testing"
+      },
+      "metadata": {
+        "description": "Tags preserved on the adopted Cosmos DB account."
+      }
+    },
+    "vnetAddressPrefixes": {
+      "type": "array",
+      "defaultValue": [
+        "10.0.0.0/16"
+      ],
+      "metadata": {
+        "description": "Virtual network address space."
+      }
+    },
+    "subnetAddressPrefixes": {
+      "type": "array",
+      "defaultValue": [
+        "10.0.0.0/24"
+      ],
+      "metadata": {
+        "description": "Default subnet address space."
+      }
+    },
+    "foundryAllowedIpRanges": {
+      "type": "array",
+      "defaultValue": [
+        "134.238.51.37",
+        "148.252.133.168"
+      ],
+      "metadata": {
+        "description": "Current Foundry account IP allow-list. Review before any deployment because these values may represent temporary administrator addresses."
+      }
+    },
+    "cosmosAllowedIpRanges": {
+      "type": "array",
+      "defaultValue": [
+        "0.0.0.0",
+        "134.238.51.37",
+        "148.252.141.60",
+        "148.252.128.142",
+        "4.210.172.107",
+        "13.88.56.148",
+        "13.91.105.215",
+        "40.91.218.243"
+      ],
+      "metadata": {
+        "description": "Current Cosmos DB IP allow-list. Review before any deployment because these values may include Azure service or temporary administrator addresses."
+      }
+    },
+    "manageProjectConnections": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Whether the non-secret project connections should be managed. Disabled for the first adoption deployment; enable only after a clean what-if."
+      }
+    },
+    "preserveLegacyKeyVaultAccessPolicy": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Whether to preserve the legacy Key Vault access policy for the Foundry account managed identity while RBAC adoption is checked."
+      }
+    },
+    "modelVersion": {
+      "type": "string",
+      "defaultValue": "2025-08-07",
+      "metadata": {
+        "description": "Model version currently deployed in the Foundry account."
+      }
+    },
+    "modelSkuName": {
+      "type": "string",
+      "defaultValue": "GlobalStandard",
+      "metadata": {
+        "description": "Model deployment SKU."
+      }
+    },
+    "modelCapacity": {
+      "type": "int",
+      "defaultValue": 500,
+      "metadata": {
+        "description": "Model deployment capacity."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "networking",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          },
+          "virtualNetworkName": {
+            "value": "[parameters('names').virtualNetwork]"
+          },
+          "subnetName": {
+            "value": "[parameters('names').subnet]"
+          },
+          "vnetAddressPrefixes": {
+            "value": "[parameters('vnetAddressPrefixes')]"
+          },
+          "subnetAddressPrefixes": {
+            "value": "[parameters('subnetAddressPrefixes')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.46.1.21595",
+              "templateHash": "6321759254554420387"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {}
+            },
+            "virtualNetworkName": {
+              "type": "string"
+            },
+            "subnetName": {
+              "type": "string"
+            },
+            "vnetAddressPrefixes": {
+              "type": "array"
+            },
+            "subnetAddressPrefixes": {
+              "type": "array"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2025-03-01",
+              "name": "[parameters('virtualNetworkName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "addressSpace": {
+                  "addressPrefixes": "[parameters('vnetAddressPrefixes')]"
+                },
+                "enableDdosProtection": false,
+                "encryption": {
+                  "enabled": false,
+                  "enforcement": "AllowUnencrypted"
+                },
+                "subnets": [
+                  {
+                    "name": "[parameters('subnetName')]",
+                    "properties": {
+                      "addressPrefixes": "[parameters('subnetAddressPrefixes')]",
+                      "defaultOutboundAccess": false,
+                      "delegations": [],
+                      "privateEndpointNetworkPolicies": "Disabled",
+                      "privateLinkServiceNetworkPolicies": "Enabled",
+                      "serviceEndpoints": [
+                        {
+                          "service": "Microsoft.CognitiveServices",
+                          "locations": [
+                            "*"
+                          ]
+                        },
+                        {
+                          "service": "Microsoft.AzureCosmosDB",
+                          "locations": [
+                            "*"
+                          ]
+                        },
+                        {
+                          "service": "Microsoft.KeyVault",
+                          "locations": [
+                            "*"
+                          ]
+                        },
+                        {
+                          "service": "Microsoft.Storage",
+                          "locations": [
+                            "francecentral",
+                            "francesouth"
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "outputs": {
+            "virtualNetworkId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]"
+            },
+            "subnetId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), parameters('subnetName'))]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "monitoring",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          },
+          "logAnalyticsName": {
+            "value": "[parameters('names').logAnalytics]"
+          },
+          "applicationInsightsName": {
+            "value": "[parameters('names').applicationInsights]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.46.1.21595",
+              "templateHash": "18139805522234387542"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {}
+            },
+            "logAnalyticsName": {
+              "type": "string"
+            },
+            "applicationInsightsName": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces",
+              "apiVersion": "2023-09-01",
+              "name": "[parameters('logAnalyticsName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "features": {
+                  "enableLogAccessUsingOnlyResourcePermissions": true
+                },
+                "publicNetworkAccessForIngestion": "Enabled",
+                "publicNetworkAccessForQuery": "Enabled",
+                "retentionInDays": 30,
+                "sku": {
+                  "name": "PerGB2018"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Insights/components",
+              "apiVersion": "2020-02-02",
+              "name": "[parameters('applicationInsightsName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "kind": "web",
+              "properties": {
+                "Application_Type": "web",
+                "WorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsName'))]",
+                "RetentionInDays": 90,
+                "publicNetworkAccessForIngestion": "Enabled",
+                "publicNetworkAccessForQuery": "Enabled"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "logAnalyticsId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsName'))]"
+            },
+            "applicationInsightsId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Insights/components', parameters('applicationInsightsName'))]"
+            },
+            "applicationInsightsConnectionString": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Insights/components', parameters('applicationInsightsName')), '2020-02-02').ConnectionString]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "storage",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          },
+          "storageAccountName": {
+            "value": "[parameters('names').storageAccount]"
+          },
+          "subnetId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'networking'), '2025-04-01').outputs.subnetId.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.46.1.21595",
+              "templateHash": "7202336109002143926"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {}
+            },
+            "storageAccountName": {
+              "type": "string"
+            },
+            "subnetId": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2025-06-01",
+              "name": "[parameters('storageAccountName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "kind": "StorageV2",
+              "sku": {
+                "name": "Standard_LRS"
+              },
+              "properties": {
+                "accessTier": "Hot",
+                "allowBlobPublicAccess": false,
+                "allowCrossTenantReplication": false,
+                "allowSharedKeyAccess": true,
+                "defaultToOAuthAuthentication": false,
+                "dnsEndpointType": "Standard",
+                "encryption": {
+                  "keySource": "Microsoft.Storage",
+                  "requireInfrastructureEncryption": false,
+                  "services": {
+                    "blob": {
+                      "enabled": true,
+                      "keyType": "Account"
+                    },
+                    "file": {
+                      "enabled": true,
+                      "keyType": "Account"
+                    }
+                  }
+                },
+                "minimumTlsVersion": "TLS1_2",
+                "networkAcls": {
+                  "bypass": "AzureServices",
+                  "defaultAction": "Allow",
+                  "ipRules": [],
+                  "ipv6Rules": [],
+                  "resourceAccessRules": [],
+                  "virtualNetworkRules": [
+                    {
+                      "action": "Allow",
+                      "id": "[parameters('subnetId')]"
+                    }
+                  ]
+                },
+                "publicNetworkAccess": "Enabled",
+                "supportsHttpsTrafficOnly": true
+              }
+            }
+          ],
+          "outputs": {
+            "id": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+            },
+            "name": {
+              "type": "string",
+              "value": "[parameters('storageAccountName')]"
+            },
+            "blobEndpoint": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2025-06-01').primaryEndpoints.blob]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'networking')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "cosmos",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[parameters('cosmosTags')]"
+          },
+          "cosmosAccountName": {
+            "value": "[parameters('names').cosmosAccount]"
+          },
+          "subnetId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'networking'), '2025-04-01').outputs.subnetId.value]"
+          },
+          "allowedIpRanges": {
+            "value": "[parameters('cosmosAllowedIpRanges')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.46.1.21595",
+              "templateHash": "14331581238508134638"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {}
+            },
+            "cosmosAccountName": {
+              "type": "string"
+            },
+            "subnetId": {
+              "type": "string"
+            },
+            "allowedIpRanges": {
+              "type": "array"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.DocumentDB/databaseAccounts",
+              "apiVersion": "2025-04-15",
+              "name": "[parameters('cosmosAccountName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "kind": "GlobalDocumentDB",
+              "identity": {
+                "type": "None"
+              },
+              "properties": {
+                "copy": [
+                  {
+                    "name": "ipRules",
+                    "count": "[length(parameters('allowedIpRanges'))]",
+                    "input": {
+                      "ipAddressOrRange": "[parameters('allowedIpRanges')[copyIndex('ipRules')]]"
+                    }
+                  }
+                ],
+                "analyticalStorageConfiguration": {
+                  "schemaType": "WellDefined"
+                },
+                "backupPolicy": {
+                  "type": "Continuous",
+                  "continuousModeProperties": {
+                    "tier": "Continuous7Days"
+                  }
+                },
+                "capabilities": [
+                  {
+                    "name": "EnableServerless"
+                  }
+                ],
+                "consistencyPolicy": {
+                  "defaultConsistencyLevel": "Session",
+                  "maxIntervalInSeconds": 5,
+                  "maxStalenessPrefix": 100
+                },
+                "cors": [],
+                "createMode": "Default",
+                "databaseAccountOfferType": "Standard",
+                "defaultIdentity": "FirstPartyIdentity",
+                "disableKeyBasedMetadataWriteAccess": false,
+                "disableLocalAuth": false,
+                "enableAnalyticalStorage": false,
+                "enableAutomaticFailover": true,
+                "enableBurstCapacity": false,
+                "enableFreeTier": false,
+                "enableMultipleWriteLocations": false,
+                "enablePartitionMerge": false,
+                "enablePerRegionPerPartitionAutoscale": false,
+                "isVirtualNetworkFilterEnabled": true,
+                "locations": [
+                  {
+                    "failoverPriority": 0,
+                    "isZoneRedundant": false,
+                    "locationName": "France Central"
+                  }
+                ],
+                "minimalTlsVersion": "Tls12",
+                "networkAclBypass": "None",
+                "networkAclBypassResourceIds": [],
+                "publicNetworkAccess": "Enabled",
+                "virtualNetworkRules": [
+                  {
+                    "id": "[parameters('subnetId')]",
+                    "ignoreMissingVNetServiceEndpoint": false
+                  }
+                ]
+              }
+            }
+          ],
+          "outputs": {
+            "id": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosAccountName'))]"
+            },
+            "name": {
+              "type": "string",
+              "value": "[parameters('cosmosAccountName')]"
+            },
+            "endpoint": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosAccountName')), '2025-04-15').documentEndpoint]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'networking')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "search",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          },
+          "searchServiceName": {
+            "value": "[parameters('names').searchService]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.46.1.21595",
+              "templateHash": "9786854655150051765"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {}
+            },
+            "searchServiceName": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Search/searchServices",
+              "apiVersion": "2025-05-01",
+              "name": "[parameters('searchServiceName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "free"
+              },
+              "properties": {
+                "authOptions": {
+                  "aadOrApiKey": {
+                    "aadAuthFailureMode": "http401WithBearerChallenge"
+                  }
+                },
+                "disableLocalAuth": false,
+                "hostingMode": "Default",
+                "networkRuleSet": {
+                  "bypass": "None",
+                  "ipRules": []
+                },
+                "partitionCount": 1,
+                "publicNetworkAccess": "Enabled",
+                "replicaCount": 1,
+                "semanticSearch": "free"
+              }
+            }
+          ],
+          "outputs": {
+            "id": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Search/searchServices', parameters('searchServiceName'))]"
+            },
+            "name": {
+              "type": "string",
+              "value": "[parameters('searchServiceName')]"
+            },
+            "endpoint": {
+              "type": "string",
+              "value": "[format('https://{0}.search.windows.net', parameters('searchServiceName'))]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "foundry",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          },
+          "foundryAccountName": {
+            "value": "[parameters('names').foundryAccount]"
+          },
+          "foundryProjectName": {
+            "value": "[parameters('names').foundryProject]"
+          },
+          "modelDeploymentName": {
+            "value": "[parameters('names').modelDeployment]"
+          },
+          "modelVersion": {
+            "value": "[parameters('modelVersion')]"
+          },
+          "modelSkuName": {
+            "value": "[parameters('modelSkuName')]"
+          },
+          "modelCapacity": {
+            "value": "[parameters('modelCapacity')]"
+          },
+          "subnetId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'networking'), '2025-04-01').outputs.subnetId.value]"
+          },
+          "allowedIpRanges": {
+            "value": "[parameters('foundryAllowedIpRanges')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.46.1.21595",
+              "templateHash": "4402372894294667180"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {}
+            },
+            "foundryAccountName": {
+              "type": "string"
+            },
+            "foundryProjectName": {
+              "type": "string"
+            },
+            "modelDeploymentName": {
+              "type": "string"
+            },
+            "modelVersion": {
+              "type": "string"
+            },
+            "modelSkuName": {
+              "type": "string"
+            },
+            "modelCapacity": {
+              "type": "int"
+            },
+            "subnetId": {
+              "type": "string"
+            },
+            "allowedIpRanges": {
+              "type": "array"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.CognitiveServices/accounts",
+              "apiVersion": "2025-06-01",
+              "name": "[parameters('foundryAccountName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "kind": "AIServices",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "sku": {
+                "name": "S0"
+              },
+              "properties": {
+                "allowProjectManagement": true,
+                "customSubDomainName": "[parameters('foundryAccountName')]",
+                "networkAcls": {
+                  "copy": [
+                    {
+                      "name": "ipRules",
+                      "count": "[length(parameters('allowedIpRanges'))]",
+                      "input": {
+                        "value": "[parameters('allowedIpRanges')[copyIndex('ipRules')]]"
+                      }
+                    }
+                  ],
+                  "bypass": "AzureServices",
+                  "defaultAction": "Allow",
+                  "virtualNetworkRules": [
+                    {
+                      "id": "[parameters('subnetId')]",
+                      "ignoreMissingVnetServiceEndpoint": false
+                    }
+                  ]
+                },
+                "publicNetworkAccess": "Enabled"
+              }
+            },
+            {
+              "type": "Microsoft.CognitiveServices/accounts/projects",
+              "apiVersion": "2025-06-01",
+              "name": "[format('{0}/{1}', parameters('foundryAccountName'), parameters('foundryProjectName'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "description": "Default project created with the resource",
+                "displayName": "[parameters('foundryProjectName')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('foundryAccountName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.CognitiveServices/accounts/deployments",
+              "apiVersion": "2025-06-01",
+              "name": "[format('{0}/{1}', parameters('foundryAccountName'), parameters('modelDeploymentName'))]",
+              "sku": {
+                "name": "[parameters('modelSkuName')]",
+                "capacity": "[parameters('modelCapacity')]"
+              },
+              "properties": {
+                "model": {
+                  "format": "OpenAI",
+                  "name": "gpt-5-mini",
+                  "version": "[parameters('modelVersion')]"
+                },
+                "raiPolicyName": "",
+                "versionUpgradeOption": "OnceNewDefaultVersionAvailable"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('foundryAccountName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "foundryAccountId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.CognitiveServices/accounts', parameters('foundryAccountName'))]"
+            },
+            "foundryAccountName": {
+              "type": "string",
+              "value": "[parameters('foundryAccountName')]"
+            },
+            "foundryPrincipalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', parameters('foundryAccountName')), '2025-06-01', 'full').identity.principalId]"
+            },
+            "foundryProjectId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.CognitiveServices/accounts/projects', parameters('foundryAccountName'), parameters('foundryProjectName'))]"
+            },
+            "foundryProjectName": {
+              "type": "string",
+              "value": "[parameters('foundryProjectName')]"
+            },
+            "foundryProjectPrincipalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts/projects', parameters('foundryAccountName'), parameters('foundryProjectName')), '2025-06-01', 'full').identity.principalId]"
+            },
+            "projectEndpoint": {
+              "type": "string",
+              "value": "[format('https://{0}.services.ai.azure.com/api/projects/{1}', parameters('foundryAccountName'), parameters('foundryProjectName'))]"
+            },
+            "modelDeploymentId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('foundryAccountName'), parameters('modelDeploymentName'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'networking')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "key-vault",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          },
+          "tenantId": {
+            "value": "[parameters('tenantId')]"
+          },
+          "keyVaultName": {
+            "value": "[parameters('names').keyVault]"
+          },
+          "subnetId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'networking'), '2025-04-01').outputs.subnetId.value]"
+          },
+          "foundryPrincipalId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'foundry'), '2025-04-01').outputs.foundryPrincipalId.value]"
+          },
+          "preserveLegacyAccessPolicy": {
+            "value": "[parameters('preserveLegacyKeyVaultAccessPolicy')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.46.1.21595",
+              "templateHash": "3015744734971627678"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {}
+            },
+            "tenantId": {
+              "type": "string"
+            },
+            "keyVaultName": {
+              "type": "string"
+            },
+            "subnetId": {
+              "type": "string"
+            },
+            "foundryPrincipalId": {
+              "type": "string"
+            },
+            "preserveLegacyAccessPolicy": {
+              "type": "bool",
+              "defaultValue": true
+            }
+          },
+          "variables": {
+            "accessPolicies": "[if(parameters('preserveLegacyAccessPolicy'), createArray(createObject('tenantId', parameters('tenantId'), 'objectId', parameters('foundryPrincipalId'), 'permissions', createObject('certificates', createArray(), 'keys', createArray(), 'secrets', createArray('get', 'list', 'set', 'delete'), 'storage', createArray()))), createArray())]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.KeyVault/vaults",
+              "apiVersion": "2024-11-01",
+              "name": "[parameters('keyVaultName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "tenantId": "[parameters('tenantId')]",
+                "sku": {
+                  "family": "A",
+                  "name": "standard"
+                },
+                "accessPolicies": "[variables('accessPolicies')]",
+                "enableRbacAuthorization": true,
+                "enableSoftDelete": true,
+                "publicNetworkAccess": "Enabled",
+                "softDeleteRetentionInDays": 90,
+                "networkAcls": {
+                  "bypass": "AzureServices",
+                  "defaultAction": "Deny",
+                  "ipRules": [],
+                  "virtualNetworkRules": [
+                    {
+                      "id": "[parameters('subnetId')]",
+                      "ignoreMissingVnetServiceEndpoint": false
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "outputs": {
+            "id": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]"
+            },
+            "name": {
+              "type": "string",
+              "value": "[parameters('keyVaultName')]"
+            },
+            "uri": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), '2024-11-01').vaultUri]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'foundry')]",
+        "[resourceId('Microsoft.Resources/deployments', 'networking')]"
+      ]
+    },
+    {
+      "condition": "[parameters('manageProjectConnections')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "project-connections",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "foundryAccountName": {
+            "value": "[parameters('names').foundryAccount]"
+          },
+          "foundryProjectName": {
+            "value": "[parameters('names').foundryProject]"
+          },
+          "keyVaultId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'key-vault'), '2025-04-01').outputs.id.value]"
+          },
+          "keyVaultLocation": {
+            "value": "[parameters('location')]"
+          },
+          "searchServiceId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'search'), '2025-04-01').outputs.id.value]"
+          },
+          "searchEndpoint": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'search'), '2025-04-01').outputs.endpoint.value]"
+          },
+          "storageAccountId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.id.value]"
+          },
+          "storageBlobEndpoint": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.blobEndpoint.value]"
+          },
+          "cosmosAccountId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'cosmos'), '2025-04-01').outputs.id.value]"
+          },
+          "cosmosEndpoint": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'cosmos'), '2025-04-01').outputs.endpoint.value]"
+          },
+          "knowledgeBaseConnectionName": {
+            "value": "kb-sharecloud-kb-9kdyn"
+          },
+          "knowledgeBaseName": {
+            "value": "sharecloud-kb"
+          },
+          "knowledgeBaseMcpEndpoint": {
+            "value": "[format('{0}/knowledgebases/sharecloud-kb/mcp?api-version=2026-05-01-preview', reference(resourceId('Microsoft.Resources/deployments', 'search'), '2025-04-01').outputs.endpoint.value)]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.46.1.21595",
+              "templateHash": "6063791186927221871"
+            }
+          },
+          "parameters": {
+            "foundryAccountName": {
+              "type": "string",
+              "metadata": {
+                "description": "This module manages only non-secret project connections. It is disabled by default in the parent template for adoption safety."
+              }
+            },
+            "foundryProjectName": {
+              "type": "string"
+            },
+            "keyVaultId": {
+              "type": "string"
+            },
+            "keyVaultLocation": {
+              "type": "string"
+            },
+            "searchServiceId": {
+              "type": "string"
+            },
+            "searchEndpoint": {
+              "type": "string"
+            },
+            "storageAccountId": {
+              "type": "string"
+            },
+            "storageBlobEndpoint": {
+              "type": "string"
+            },
+            "cosmosAccountId": {
+              "type": "string"
+            },
+            "cosmosEndpoint": {
+              "type": "string"
+            },
+            "knowledgeBaseConnectionName": {
+              "type": "string"
+            },
+            "knowledgeBaseName": {
+              "type": "string"
+            },
+            "knowledgeBaseMcpEndpoint": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.CognitiveServices/accounts/projects/connections",
+              "apiVersion": "2025-06-01",
+              "name": "[format('{0}/{1}/{2}', parameters('foundryAccountName'), parameters('foundryProjectName'), format('{0}-keyvault', parameters('foundryAccountName')))]",
+              "properties": {
+                "authType": "AccountManagedIdentity",
+                "category": "AzureKeyVault",
+                "group": "Azure",
+                "isDefault": true,
+                "isSharedToAll": true,
+                "metadata": {
+                  "ApiType": "Azure",
+                  "ResourceId": "[parameters('keyVaultId')]",
+                  "location": "[parameters('keyVaultLocation')]"
+                },
+                "target": "[parameters('keyVaultId')]",
+                "useWorkspaceManagedIdentity": false
+              }
+            },
+            {
+              "type": "Microsoft.CognitiveServices/accounts/projects/connections",
+              "apiVersion": "2025-06-01",
+              "name": "[format('{0}/{1}/{2}', parameters('foundryAccountName'), parameters('foundryProjectName'), format('{0}-aisearch-existing', parameters('foundryAccountName')))]",
+              "properties": {
+                "authType": "AAD",
+                "category": "CognitiveSearch",
+                "group": "AzureAI",
+                "isDefault": true,
+                "isSharedToAll": true,
+                "metadata": {
+                  "ApiVersion": "2024-05-01-preview",
+                  "DeploymentApiVersion": "2023-11-01",
+                  "ResourceId": "[parameters('searchServiceId')]",
+                  "location": "[parameters('keyVaultLocation')]"
+                },
+                "target": "[parameters('searchEndpoint')]",
+                "useWorkspaceManagedIdentity": false
+              }
+            },
+            {
+              "type": "Microsoft.CognitiveServices/accounts/projects/connections",
+              "apiVersion": "2025-06-01",
+              "name": "[format('{0}/{1}/{2}', parameters('foundryAccountName'), parameters('foundryProjectName'), format('{0}-storage-existing', parameters('foundryAccountName')))]",
+              "properties": {
+                "authType": "AAD",
+                "category": "AzureStorageAccount",
+                "group": "Azure",
+                "isDefault": true,
+                "isSharedToAll": true,
+                "metadata": {
+                  "ApiType": "Azure",
+                  "ResourceId": "[parameters('storageAccountId')]"
+                },
+                "target": "[parameters('storageBlobEndpoint')]",
+                "useWorkspaceManagedIdentity": false
+              }
+            },
+            {
+              "type": "Microsoft.CognitiveServices/accounts/projects/connections",
+              "apiVersion": "2025-06-01",
+              "name": "[format('{0}/{1}/{2}', parameters('foundryAccountName'), parameters('foundryProjectName'), format('{0}-cosmosdb-existing', parameters('foundryAccountName')))]",
+              "properties": {
+                "authType": "AAD",
+                "category": "CosmosDb",
+                "group": "Azure",
+                "isDefault": true,
+                "isSharedToAll": true,
+                "metadata": {
+                  "ApiType": "Azure",
+                  "ResourceId": "[parameters('cosmosAccountId')]",
+                  "location": "[parameters('keyVaultLocation')]"
+                },
+                "target": "[parameters('cosmosEndpoint')]",
+                "useWorkspaceManagedIdentity": false
+              }
+            },
+            {
+              "type": "Microsoft.CognitiveServices/accounts/projects/connections",
+              "apiVersion": "2025-06-01",
+              "name": "[format('{0}/{1}/{2}', parameters('foundryAccountName'), parameters('foundryProjectName'), parameters('knowledgeBaseConnectionName'))]",
+              "properties": {
+                "audience": "https://search.azure.com",
+                "authType": "ProjectManagedIdentity",
+                "category": "RemoteTool",
+                "group": "GenericProtocol",
+                "isDefault": true,
+                "isSharedToAll": false,
+                "metadata": {
+                  "knowledgeBaseName": "[parameters('knowledgeBaseName')]",
+                  "type": "knowledgeBase_MCP"
+                },
+                "target": "[parameters('knowledgeBaseMcpEndpoint')]",
+                "useWorkspaceManagedIdentity": false
+              }
+            }
+          ],
+          "outputs": {
+            "managedConnectionNames": {
+              "type": "array",
+              "value": [
+                "[format('{0}-keyvault', parameters('foundryAccountName'))]",
+                "[format('{0}-aisearch-existing', parameters('foundryAccountName'))]",
+                "[format('{0}-storage-existing', parameters('foundryAccountName'))]",
+                "[format('{0}-cosmosdb-existing', parameters('foundryAccountName'))]",
+                "[parameters('knowledgeBaseConnectionName')]"
+              ]
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'cosmos')]",
+        "[resourceId('Microsoft.Resources/deployments', 'key-vault')]",
+        "[resourceId('Microsoft.Resources/deployments', 'search')]",
+        "[resourceId('Microsoft.Resources/deployments', 'storage')]"
+      ]
+    }
+  ],
+  "outputs": {
+    "resourceGroupName": {
+      "type": "string",
+      "value": "[resourceGroup().name]"
+    },
+    "location": {
+      "type": "string",
+      "value": "[parameters('location')]"
+    },
+    "virtualNetworkId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'networking'), '2025-04-01').outputs.virtualNetworkId.value]"
+    },
+    "subnetId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'networking'), '2025-04-01').outputs.subnetId.value]"
+    },
+    "logAnalyticsId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'monitoring'), '2025-04-01').outputs.logAnalyticsId.value]"
+    },
+    "applicationInsightsId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'monitoring'), '2025-04-01').outputs.applicationInsightsId.value]"
+    },
+    "storageAccountId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.id.value]"
+    },
+    "cosmosAccountId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'cosmos'), '2025-04-01').outputs.id.value]"
+    },
+    "keyVaultId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'key-vault'), '2025-04-01').outputs.id.value]"
+    },
+    "searchServiceId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'search'), '2025-04-01').outputs.id.value]"
+    },
+    "foundryAccountId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'foundry'), '2025-04-01').outputs.foundryAccountId.value]"
+    },
+    "foundryProjectId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'foundry'), '2025-04-01').outputs.foundryProjectId.value]"
+    },
+    "foundryProjectEndpoint": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'foundry'), '2025-04-01').outputs.projectEndpoint.value]"
+    },
+    "projectConnectionsManaged": {
+      "type": "bool",
+      "value": "[parameters('manageProjectConnections')]"
+    }
+  }
+}

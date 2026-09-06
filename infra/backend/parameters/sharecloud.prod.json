@@ -1,0 +1,57 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "francecentral"
+    },
+    "names": {
+      "value": {
+        "virtualNetwork": "sharecloud-vnet",
+        "subnet": "default",
+        "logAnalytics": "sharecloud-log-workspace",
+        "applicationInsights": "sharecloud-app-insights",
+        "storageAccount": "sharecloudstorage",
+        "cosmosAccount": "sharecloud-cosmos-db",
+        "keyVault": "sharecloud-kv",
+        "searchService": "sharecloud-ai-search",
+        "foundryAccount": "sharecloud-foundry-instance",
+        "foundryProject": "proj-default",
+        "modelDeployment": "gpt-5-mini"
+      }
+    },
+    "foundryAllowedIpRanges": {
+      "value": [
+        "134.238.51.37",
+        "148.252.133.168"
+      ]
+    },
+    "cosmosAllowedIpRanges": {
+      "value": [
+        "0.0.0.0",
+        "134.238.51.37",
+        "148.252.141.60",
+        "148.252.128.142",
+        "4.210.172.107",
+        "13.88.56.148",
+        "13.91.105.215",
+        "40.91.218.243"
+      ]
+    },
+    "manageProjectConnections": {
+      "value": false
+    },
+    "preserveLegacyKeyVaultAccessPolicy": {
+      "value": true
+    },
+    "modelVersion": {
+      "value": "2025-08-07"
+    },
+    "modelSkuName": {
+      "value": "GlobalStandard"
+    },
+    "modelCapacity": {
+      "value": 500
+    }
+  }
+}

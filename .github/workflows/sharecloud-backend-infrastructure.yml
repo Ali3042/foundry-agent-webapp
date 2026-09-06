@@ -1,0 +1,128 @@
+name: ShareCloud Backend Infrastructure
+
+on:
+  pull_request:
+    paths:
+      - "infra/backend/**"
+      - ".github/workflows/sharecloud-backend-infrastructure.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "infra/backend/**"
+      - ".github/workflows/sharecloud-backend-infrastructure.yml"
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: "Preview changes or deploy after reviewing the what-if output"
+        required: true
+        default: "what-if"
+        type: choice
+        options:
+          - what-if
+          - deploy
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  BACKEND_RESOURCE_GROUP: ShareCloud
+  BACKEND_LOCATION: francecentral
+  TEMPLATE_FILE: infra/backend/main.bicep
+  PARAMETERS_FILE: infra/backend/parameters/sharecloud.prod.json
+
+jobs:
+  validate:
+    name: Compile and lint Bicep
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Show Bicep version
+        run: az bicep version
+
+      - name: Lint backend entry points
+        run: |
+          az bicep lint --file "$TEMPLATE_FILE"
+          az bicep lint --file infra/backend/audit-existing.bicep
+
+      - name: Compile backend entry points
+        run: |
+          mkdir -p "$RUNNER_TEMP/sharecloud-bicep"
+          az bicep build \
+            --file "$TEMPLATE_FILE" \
+            --outfile "$RUNNER_TEMP/sharecloud-bicep/main.json"
+          az bicep build \
+            --file infra/backend/audit-existing.bicep \
+            --outfile "$RUNNER_TEMP/sharecloud-bicep/audit-existing.json"
+          jq empty "$PARAMETERS_FILE"
+
+      - name: Upload compiled templates
+        uses: actions/upload-artifact@v4
+        with:
+          name: sharecloud-backend-bicep-${{ github.run_number }}
+          path: ${{ runner.temp }}/sharecloud-bicep
+          retention-days: 14
+
+  plan-or-deploy:
+    name: ${{ inputs.operation == 'deploy' && 'Deploy' || 'What-if' }} ShareCloud backend
+    if: github.event_name == 'workflow_dispatch'
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: sharecloud-production
+    steps:
+      - name: Require execution from main
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "Infrastructure what-if/deploy is permitted only from main. Current ref: $GITHUB_REF"
+            exit 1
+          fi
+
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Sign in to Azure with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Confirm target resource group
+        run: |
+          az group show \
+            --name "$BACKEND_RESOURCE_GROUP" \
+            --query "{name:name,location:location,id:id}" \
+            -o table
+
+      - name: Run what-if
+        run: |
+          mkdir -p "$RUNNER_TEMP/sharecloud-what-if"
+          az deployment group what-if \
+            --name "sharecloud-backend-${GITHUB_RUN_NUMBER}" \
+            --resource-group "$BACKEND_RESOURCE_GROUP" \
+            --template-file "$TEMPLATE_FILE" \
+            --parameters "@$PARAMETERS_FILE" \
+            --result-format FullResourcePayloads \
+            | tee "$RUNNER_TEMP/sharecloud-what-if/what-if.txt"
+
+      - name: Upload what-if output
+        uses: actions/upload-artifact@v4
+        with:
+          name: sharecloud-backend-what-if-${{ github.run_number }}
+          path: ${{ runner.temp }}/sharecloud-what-if/what-if.txt
+          retention-days: 30
+
+      - name: Deploy after reviewed what-if
+        if: inputs.operation == 'deploy'
+        run: |
+          az deployment group create \
+            --name "sharecloud-backend-${GITHUB_RUN_NUMBER}" \
+            --resource-group "$BACKEND_RESOURCE_GROUP" \
+            --template-file "$TEMPLATE_FILE" \
+            --parameters "@$PARAMETERS_FILE" \
+            --mode Incremental \
+            --query "{name:name,state:properties.provisioningState,timestamp:properties.timestamp}" \
+            -o table
