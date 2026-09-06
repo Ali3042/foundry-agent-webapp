@@ -71,7 +71,6 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     needs: validate
     runs-on: ubuntu-latest
-    environment: sharecloud-production
     steps:
       - name: Require execution from main
         run: |
