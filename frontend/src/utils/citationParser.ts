@@ -95,12 +95,12 @@ export function parseContentWithCitations(
 
   // Second pass: Handle any remaining 【...†...】 patterns not in textToReplace
   // This catches cases where the annotation doesn't have textToReplace set
-  processedText = processedText.replace(CITATION_PATTERNS.assistants, (match, _id, label) => {
+  processedText = processedText.replace(CITATION_PATTERNS.assistants, (match, _id, label, offset) => {
     // Try to find matching annotation by label or position
     const matchingAnnotation = annotations.find(a => 
       a.label === label || 
       a.textToReplace === match ||
-      (a.startIndex !== undefined && content.indexOf(match) >= a.startIndex)
+      (a.startIndex !== undefined && a.endIndex !== undefined && a.startIndex === offset && a.endIndex === offset + match.length)
     );
     
     if (matchingAnnotation) {
